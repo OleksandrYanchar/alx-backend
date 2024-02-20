@@ -1,0 +1,16 @@
+fastapi
+pillow
+python-dotenv
+sqlalchemy
+asyncpg
+uvicorn[standard]
+psycopg2-binary
+PyJWT==2.8.0
+passlib
+pydantic-settings
+sqlmodel
+sqlalchemy-utils
+aiosqlite
+pydantic[email]
+ujson
+alembic
