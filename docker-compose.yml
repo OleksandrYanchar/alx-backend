@@ -29,11 +29,7 @@ services:
     command: 'sh -c "alembic upgrade head && python app/main.py --host 0.0.0.0 --port 8000"'
     depends_on:
       - alx-db
-    healthcheck:
-      test: ["CMD-SHELL", "curl --fail http://localhost:8000/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+
 
   alx-db:
     container_name: alx-db
