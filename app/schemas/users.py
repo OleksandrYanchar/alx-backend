@@ -3,6 +3,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 from datetime import date
 
+
 class UserCreateSchema(BaseModel):
     username: str
     password: str
@@ -14,6 +15,7 @@ class UserCreateSchema(BaseModel):
     class Config:
         from_attributes = True  
 
+
 class UserCreateOutSchema(BaseModel):
     id: UUID
     username: str
@@ -22,5 +24,29 @@ class UserCreateOutSchema(BaseModel):
     email: str
     joined_at: date
       
+    class Config:
+        from_attributes = True  
+
+        
+class UserLoginSchema(BaseModel):
+    username: str
+    password: str
+
+    class Config:
+        from_attributes = True  
+
+class TokenSchema(BaseModel):
+    access_token: str
+    refresh_token: str
+
+    class Config:
+        from_attributes = True  
+        
+class DataTokenSchema(BaseModel):
+    
+    id: UUID
+    username: str
+    joined_at: date
+    
     class Config:
         from_attributes = True  
