@@ -6,9 +6,11 @@ from services.email import send_email
 from dependencies.db import get_async_session
 from schemas.users import UserCreateSchema, UserCreateOutSchema
 from schemas.email import EmailVerificationSchema
-from services.auth import get_password_hash, verify_token
+from services.auth import create_access_token, get_password_hash, verify_password, verify_token_access
 from services.validators import is_unique, validate_password , validate_email
 from models.users import Users
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.future import select
 
 router = APIRouter(
     prefix="/users",
@@ -66,7 +68,7 @@ async def create_user(user_request: UserCreateSchema, db: Session = Depends(get_
 
 @router.get('/verification')
 async def email_verification(request: Request, token: str, db: Session = Depends(get_async_session)):
-    user = await verify_token(token, db) # This will be somewhat personalized to your db
+    user = await verify_token_access(token, db) # This will be somewhat personalized to your db
     if user and not user.is_activated:
         user.is_activated = True
         db.add(user)  # ORM operation to signal the change
@@ -81,3 +83,20 @@ async def email_verification(request: Request, token: str, db: Session = Depends
         detail="Invalid or expired token",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+@router.post('/login')
+async def login(userdetails: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_async_session)):
+    stmt = select(Users).where(Users.username == userdetails.username)
+    result = await db.execute(stmt)
+    user = result.scalars().first()    
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User with this email doesn't exist")
+    if not verify_password(userdetails.password, user.password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Password doesn't match")
+    
+    # Await the creation of the access token
+    access_token = await create_access_token(data={"id": user.id,
+                                                   "username": user.username,
+                                                   "joined_at": user.joined_at})
+    
+    return {"access_token": access_token, "token_type": "bearer"}
