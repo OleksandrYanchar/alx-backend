@@ -1,4 +1,5 @@
 fastapi
+fastapi-mail
 pillow
 python-dotenv
 sqlalchemy
