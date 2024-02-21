@@ -1,10 +1,8 @@
-from fastapi import HTTPException, status
+from  datetime import datetime, timedelta
 from passlib.context import CryptContext
-from configs.auth import SECRET
-from models.users import Users
-from sqlalchemy import select
-from sqlalchemy.exc import NoResultFound
-from sqlmodel import Session
+from schemas.users import DataTokenSchema
+from configs.auth import ACCESS_TOKEN_EXPIRE_MINUTES, SECRET
+from jose import JWTError, jwt
 import jwt
 
 
@@ -15,19 +13,31 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-async def verify_token(token: str, db: Session):
-    # Assuming JWT decoding and the SECRET is already handled, as seen in your original structure
+def verify_password(plain_password, hashed_pass):
+    return pwd_context.verify(plain_password, hashed_pass)
+
+async def verify_token_access(token: str, credentials_exception):
     try:
         payload = jwt.decode(token, SECRET, algorithms=['HS256'])
-        query = select(Users).where(Users.id == payload.get('id'))
-        result = await db.execute(query)
-        user = result.scalars().first()  # Getting the first result if there's any, without making a model assumption
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, NoResultFound):
-        # You might want to properly branch this for the specific "why" the call went to the exception, i.e., token decode error vs. no actual user found
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        
+        # Ensure this matches the key used in the JWT payload
+        user_id: str = payload.get("id")  
+        if user_id is None:
+            raise credentials_exception
+        # Assuming DataTokenSchema is defined elsewhere and correctly handles the 'id'
+        token_data = DataTokenSchema(id=user_id)
+    except JWTError as e:
+        print(e)
+        raise credentials_exception
+
+    return token_data
+
+
+async def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    # Ensure the 'id' and 'joined_at' are properly converted to strings
+    to_encode.update({"exp": expire, "id": str(data["id"]), "joined_at": data["joined_at"].isoformat()})
     
-    return user
+    encoded_jwt = jwt.encode(to_encode, SECRET, algorithm='HS256')
+    return encoded_jwt
