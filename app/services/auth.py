@@ -1,15 +1,13 @@
-from typing import Type, Dict, Any
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from passlib.context import CryptContext
-from dotenv import load_dotenv
-import os
-from re import match
-load_dotenv()
+from configs.auth import SECRET
+from models.users import Users
+from sqlalchemy import select
+from sqlalchemy.exc import NoResultFound
+from sqlmodel import Session
+import jwt
 
-SECRET = os.getenv('SECRET')
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -17,68 +15,19 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-
-async def is_unique(db: AsyncSession, model: Type, fields_to_check: Dict[str, Any]) -> bool:
-    """
-    Asynchronously checks if given fields are unique for a model.
+async def verify_token(token: str, db: Session):
+    # Assuming JWT decoding and the SECRET is already handled, as seen in your original structure
+    try:
+        payload = jwt.decode(token, SECRET, algorithms=['HS256'])
+        query = select(Users).where(Users.id == payload.get('id'))
+        result = await db.execute(query)
+        user = result.scalars().first()  # Getting the first result if there's any, without making a model assumption
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, NoResultFound):
+        # You might want to properly branch this for the specific "why" the call went to the exception, i.e., token decode error vs. no actual user found
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
-    Parameters:
-    - db: Async database session.
-    - model: The SQLAlchemy model class to check.
-    - fields_to_check: A dictionary of field names and their values to check for uniqueness.
-    
-    Returns:
-    - True if all fields are unique, otherwise raises an HTTPException with status code 400 and details of duplicates.
-    """
-    errors = {}
-    for field_name, field_value in fields_to_check.items():
-        stmt = select(model).filter(getattr(model, field_name) == field_value)
-        result = await db.execute(stmt)
-        existing_record = result.scalars().first()
-        if existing_record:
-            # If the code reaches this point, a record exists, so add an error
-            errors[field_name] = f"This {field_name} is already in use."
-
-    if errors:
-        # If there are any errors, raise an HTTPException with the details
-        raise HTTPException(status_code=400, detail=errors)
-
-    # If no errors, all fields are unique
-    return True
-
-
-async def validate_email(email: str) -> bool:
-    """
-    Asynchronously checks if given email is valid.
-    
-    Parameters:
-    - email: string to check.
-    
-    Returns:
-    - True if email is valid, otherwise raises an HTTPException with status code 400.
-    """
-    #email validation pattern
-    pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-    #checking if passed email matches pattern
-    if not match(pattern, email):
-        raise HTTPException(status_code=400, detail="Invalid email format")
-    return True
-
-
-async def validate_password(password: str) -> bool:
-    """
-    Asynchronously checks if given email is valid.
-    
-    Parameters:
-    - email: string to check.
-    
-    Returns:
-    - True if email is valid, otherwise raises an HTTPException with status code 400.
-    """
-    #checking if password ain't totaly numerical
-    if password.isdigit():
-        raise HTTPException(status_code=400, detail="Password can't be totaly numerical")
-    #checking if password's lens is greater or eaqual 8
-    if len(password) < 8:
-        raise HTTPException(status_code=400, detail="Your password is too short")
-    return True
+    return user
