@@ -1,24 +1,18 @@
-from datetime import timedelta, datetime
-
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-from sqlalchemy.orm import Session
-from services.auth import verify_token_access
-
-import schemas
+from app.services.tokens import verify_token
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.dependencies.db import get_async_session
+from utils.objects import get_object
 from dependencies.db import get_async_session
 
 from models.users import Users
-oauth2_scheme = OAuth2PasswordBearer()
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_async_session)):
-    credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                                          detail="Could not Validate Credentials",
-                                          headers={"WWW-Authenticate": "Bearer"})
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
-    token = verify_token_access(token, credentials_exception)
-
-    user = db.query(Users).filter(Users.id == token.id).first()
-
+async def get_current_user(token: str = Depends(oauth2_scheme), session: AsyncSession = Depends(get_async_session)) -> Users:
+    token_data = await verify_token(token, session)
+    user = await get_object(Users,session=session, id=token_data.user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
