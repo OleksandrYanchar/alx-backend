@@ -42,5 +42,4 @@ async def send_email(email: EmailSchema, user: Users):
     )
 
     fm = FastMail(config)
-    print(token)
     await fm.send_message(message)
