@@ -2,15 +2,18 @@ from datetime import date
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlmodel import Session
+from schemas.tokens import TokenPayload
+from utils.objects import get_object
+from services.tokens import create_access_token, create_refresh_token, verify_token
 from services.email import send_email
 from dependencies.db import get_async_session
 from schemas.users import UserCreateSchema, UserCreateOutSchema
 from schemas.email import EmailVerificationSchema
-from services.auth import create_access_token, get_password_hash, verify_password, verify_token_access
+from services.auth import get_password_hash, verify_user_credentials
 from services.validators import is_unique, validate_password , validate_email
 from models.users import Users
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.future import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(
     prefix="/users",
@@ -44,59 +47,68 @@ async def create_user(user_request: UserCreateSchema, db: Session = Depends(get_
         if await is_unique(db, Users, {'email': new_user.email, 'username': new_user.username}):
             
             try:
-                 # First, pocket the new aster to the cession
+                # Add the new user to the session
                 db.add(new_user)
+                # Flush the session to get the generated ID
+                await db.flush()
                 
-                # Glyce the vellum to red in the house of Db
-                await db.commit()
-                await db.refresh(new_user)
-
-                # Greek the rove to your medals in your mails
+                # Now send the email after flushing
                 await send_email([new_user.email], new_user)
                 
-                # Vail's story married
+                # Commit the transaction
+                await db.commit()
+                await db.refresh(new_user)
+                
                 return UserCreateOutSchema.from_orm(new_user)
-            
+
             except Exception as e:
-                # Rollback the session in case of error to avoid any inconsistent state in the database
+                # Rollback the session in case of error
                 await db.rollback()
-                # Log the exception to have a record of what went wrong
+                # Log the exception and raise an HTTPException
                 logging.exception("An error occurred while creating a new user.")
-                # Raise the exception to send it back to the client
                 raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get('/verification')
-async def email_verification(request: Request, token: str, db: Session = Depends(get_async_session)):
-    user = await verify_token_access(token, db) # This will be somewhat personalized to your db
-    if user and not user.is_activated:
-        user.is_activated = True
-        db.add(user)  # ORM operation to signal the change
-        await db.commit()  # Synchronizing the change with your DB
-        await db.refresh(user)  # Ensuring you've the recent-most update from the data layer
+@router.get("/verification")
+async def email_verification(request: Request, token: str, db: AsyncSession = Depends(get_async_session)):
+    # Remove any whitespace or newline characters from the token string
+    token = token.strip()
 
-        # Form and return the instance of EmailVerificationSchema
-        return EmailVerificationSchema(username=user.username, is_active=user.is_activated)
+    try:
+        token_data = await verify_token(token)  # Assuming verify_token is designed to work as is
+        user_id = str(token_data.user_id)  # Adapted based on your TokenPayload schema
+        
+        user = await get_object(Users, session=db, id=user_id)  # Ensure to pass the session object 'db'
 
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED, 
-        detail="Invalid or expired token",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+        if user and not user.is_activated:
+            user.is_activated = True
+            await db.commit()  # Synchronize the change with your DB
+            await db.refresh(user)  # Ensure you've the recent-most update from the data layer
 
-@router.post('/login')
-async def login(userdetails: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_async_session)):
-    stmt = select(Users).where(Users.username == userdetails.username)
-    result = await db.execute(stmt)
-    user = result.scalars().first()    
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User with this email doesn't exist")
-    if not verify_password(userdetails.password, user.password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Password doesn't match")
-    
-    # Await the creation of the access token
-    access_token = await create_access_token(data={"id": user.id,
-                                                   "username": user.username,
-                                                   "joined_at": user.joined_at})
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+            return {"username": user.username, "is_active": user.is_activated}
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="User not found or already activated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except HTTPException as e:
+        raise e  # Re-raise HTTPException
+    except Exception as e:
+        logging.error(f"An error occurred during email verification: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail="Internal server error occurred during email verification"
+        )
+
+@router.post("/token")
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), session: AsyncSession = Depends(get_async_session)):
+    user = await verify_user_credentials(form_data.username, form_data.password, session)
+    token_payload = TokenPayload(user_id=str(user.id),
+                                 username=user.username,
+                                 is_activated = user.is_activated,
+                                 is_staff = user.is_staff,
+                                 )
+    access_token = await create_access_token(data=token_payload)
+    refresh_token = await create_refresh_token(data=token_payload)
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
