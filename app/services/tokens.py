@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta
 import logging
 from typing import Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import HTTPException, status
 from jose import JWTError, jwt
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from dependencies.db import get_async_session
+from models.tokens import BlacklistedToken
 from configs.auth import SECRET, REFRESH_SECRET, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS, ALGORITHM
 
 # Assuming you have a TokenPayload model defined somewhere
@@ -32,17 +33,41 @@ async def create_refresh_token(*, data: TokenPayload, expires_delta: Optional[ti
     return encoded_jwt
 
 
-async def verify_token(token: str, session: AsyncSession = Depends(get_async_session)) -> TokenPayload:
+async def verify_token(token: str, token_type: str) -> TokenPayload:
+    # Determine which secret to use based on the token type
+    SECRET = REFRESH_SECRET if token_type == "refresh" else SECRET
+    
     try:
         payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+        
+        # For refresh tokens, you may only need the user_id
         user_id: str = payload.get("user_id")
-        username: str = payload.get("username")
-        is_staff: Optional[bool] = payload.get("is_staff")
+        if user_id is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload: missing user_id")
+
+        # For access tokens, you may also need username and is_staff
+        if token_type == "access":
+            username: str = payload.get("username")
+            is_staff: Optional[bool] = payload.get("is_staff")
+            if username is None:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload: missing username")
+            return TokenPayload(user_id=user_id, username=username, is_staff=is_staff)
         
-        if user_id is None or username is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload: missing user_id or username")
-        
-        return TokenPayload(user_id=user_id, username=username, is_staff=is_staff)
+        # If it's a refresh token, you might return a simpler payload
+        return TokenPayload(user_id=user_id)
+
     except JWTError as e:
         logging.error(f"JWT decoding error: {e}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials.")
+    
+    
+async def is_token_blacklisted(token: str, db: AsyncSession) -> bool:
+    result = await db.execute(
+        select(BlacklistedToken).filter(BlacklistedToken.token == token)
+    )
+    return result.scalars().first() is not None
+
+async def blacklist_token(token: str, db: AsyncSession):
+    blacklisted_token = BlacklistedToken(token=token, blacklisted_on=datetime.utcnow())
+    db.add(blacklisted_token)
+    await db.commit()
