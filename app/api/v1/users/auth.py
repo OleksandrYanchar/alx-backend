@@ -1,14 +1,12 @@
 from datetime import date
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlmodel import Session
-from schemas.tokens import TokenPayload
+from schemas.tokens import Token, TokenPayload, TokenRefreshRequest
 from utils.objects import get_object
-from services.tokens import create_access_token, create_refresh_token, verify_token
+from services.tokens import blacklist_token, create_access_token, create_refresh_token, is_token_blacklisted, verify_token
 from services.email import send_email
 from dependencies.db import get_async_session
 from schemas.users import UserCreateSchema, UserCreateOutSchema
-from schemas.email import EmailVerificationSchema
 from services.auth import get_password_hash, verify_user_credentials
 from services.validators import is_unique, validate_password , validate_email
 from models.users import Users
@@ -23,7 +21,7 @@ router = APIRouter(
 @router.post("/signup")
 
 
-async def create_user(user_request: UserCreateSchema, db: Session = Depends(get_async_session)) :    
+async def create_user(user_request: UserCreateSchema, db: AsyncSession = Depends(get_async_session)) :    
     """
     Asynchronously registrate user.
     
@@ -112,3 +110,34 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     access_token = await create_access_token(data=token_payload)
     refresh_token = await create_refresh_token(data=token_payload)
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+
+
+
+@router.post("/token/refresh", response_model=Token)
+async def refresh_token(token_refresh_request: TokenRefreshRequest, db: AsyncSession = Depends(get_async_session)):
+    refresh_token = token_refresh_request.refresh_token
+    if await is_token_blacklisted(refresh_token, db):
+        raise HTTPException(status_code=400, detail="Token is blacklisted")
+
+    try:
+        payload = await verify_token(refresh_token, "refresh") 
+        
+        token_payload = TokenPayload(
+        user_id = str(payload.user_id),  
+        username = payload.username,
+        is_activated = payload.is_activated,
+        is_staff = payload.is_staff,
+        )
+        
+        new_access_token = await create_access_token(data=token_payload)
+        
+        new_refresh_token = await create_refresh_token(data=token_payload)
+        
+        await blacklist_token(refresh_token, db)  
+
+        return Token(access_token=new_access_token, refresh_token=new_refresh_token, token_type="bearer")
+
+    except Exception as e:  
+        logging.error(f"Error during token refresh: {e}")  # Log the error for debugging
+        raise HTTPException(status_code=403, detail="Token is invalid or expired")
