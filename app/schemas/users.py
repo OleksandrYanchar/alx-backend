@@ -34,19 +34,3 @@ class UserLoginSchema(BaseModel):
 
     class Config:
         from_attributes = True  
-
-class TokenSchema(BaseModel):
-    access_token: str
-    refresh_token: str
-
-    class Config:
-        from_attributes = True  
-        
-class DataTokenSchema(BaseModel):
-    
-    id: UUID
-    username: str
-    joined_at: date
-    
-    class Config:
-        from_attributes = True  
