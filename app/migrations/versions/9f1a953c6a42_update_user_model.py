@@ -1,8 +1,8 @@
-"""Tokens tables
+"""UPDATE user model
 
-Revision ID: 623902e1445a
+Revision ID: 9f1a953c6a42
 Revises: 
-Create Date: 2024-02-22 06:38:32.967908
+Create Date: 2024-02-24 06:31:36.434991
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '623902e1445a'
+revision = '9f1a953c6a42'
 down_revision = None
 branch_labels = None
 depends_on = None
