@@ -15,3 +15,5 @@ aiosqlite
 pydantic[email]
 ujson
 alembic
+python-jose
+python-multipart
