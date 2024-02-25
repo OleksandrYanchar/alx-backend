@@ -17,3 +17,4 @@ ujson
 alembic
 python-jose
 python-multipart
+aiofiles
