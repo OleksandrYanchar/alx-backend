@@ -7,7 +7,7 @@ from dependencies.db import get_async_session
 
 from models.users import Users
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/users/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/users/auth/token")
 
 
 async def get_current_user(
