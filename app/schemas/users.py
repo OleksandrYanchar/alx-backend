@@ -1,4 +1,3 @@
-from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, Field
 from datetime import date
@@ -11,9 +10,9 @@ class UserCreateSchema(BaseModel):
     last_name: str
     email: str
     joined_at: date = Field(default=date.today, description="user registration date?")
-      
+
     class Config:
-        from_attributes = True  
+        from_attributes = True
 
 
 class UserCreateOutSchema(BaseModel):
@@ -23,14 +22,14 @@ class UserCreateOutSchema(BaseModel):
     last_name: str
     email: str
     joined_at: date
-      
-    class Config:
-        from_attributes = True  
 
-        
+    class Config:
+        from_attributes = True
+
+
 class UserLoginSchema(BaseModel):
     username: str
     password: str
 
     class Config:
-        from_attributes = True  
+        from_attributes = True

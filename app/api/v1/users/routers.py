@@ -6,4 +6,4 @@ router = APIRouter(
     tags=["users"],
 )
 
-router.include_router(auth_router) 
+router.include_router(auth_router)
