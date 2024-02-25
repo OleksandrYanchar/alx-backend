@@ -1,7 +1,7 @@
-from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import date
+
 
 class UserCreateSchema(BaseModel):
     username: str
@@ -9,14 +9,11 @@ class UserCreateSchema(BaseModel):
     first_name: str
     last_name: str
     email: str
-    joined_at: date
-    is_activated: bool = False
-    is_vip: bool = False
-    is_staff: bool = False
-    image: Optional[str]
-      
+    joined_at: date = Field(default=date.today, description="user registration date?")
+
     class Config:
-        from_attributes = True  
+        from_attributes = True
+
 
 class UserCreateOutSchema(BaseModel):
     id: UUID
@@ -25,7 +22,14 @@ class UserCreateOutSchema(BaseModel):
     last_name: str
     email: str
     joined_at: date
-    image: Optional[str]
-      
+
     class Config:
-        from_attributes = True  
+        from_attributes = True
+
+
+class UserLoginSchema(BaseModel):
+    username: str
+    password: str
+
+    class Config:
+        from_attributes = True

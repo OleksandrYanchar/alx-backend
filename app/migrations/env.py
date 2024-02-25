@@ -6,10 +6,11 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from db.db import Base, DATABASE_URL
 from models.users import Users
+from models.tokens import BlacklistedToken
 
 
 config = context.config
-config.set_main_option("sqlalchemy.url",DATABASE_URL )
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

@@ -1,4 +1,5 @@
 fastapi
+fastapi-mail
 pillow
 python-dotenv
 sqlalchemy
@@ -14,3 +15,5 @@ aiosqlite
 pydantic[email]
 ujson
 alembic
+python-jose
+python-multipart
