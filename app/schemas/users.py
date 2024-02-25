@@ -33,3 +33,16 @@ class UserLoginSchema(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UserInfochema(BaseModel):
+    id : str
+    username: str
+    first_name: str
+    last_name: str
+    email: str
+    joined_at: date
+    photo : str 
+    
+    class Config:
+        from_attributes = True  
