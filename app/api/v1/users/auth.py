@@ -27,7 +27,7 @@ router = APIRouter(
 
 @router.post("/signup")
 async def create_user(
-    user_request: UserCreateSchema, db: AsyncSession = Depends(get_async_session)
+    user_request: UserCreateSchema, request: Request, db: AsyncSession = Depends(get_async_session)
 ):
     """
     Asynchronously registrate user.
@@ -62,7 +62,7 @@ async def create_user(
                 await db.flush()
 
                 # Now send the email after flushing
-                await send_email([new_user.email], new_user)
+                await send_email([new_user.email], new_user, request)
 
                 # Commit the transaction
                 await db.commit()
@@ -79,8 +79,7 @@ async def create_user(
 
 
 @router.get("/verification")
-async def email_verification(
-    request: Request, token: str, db: AsyncSession = Depends(get_async_session)
+async def email_verification( token: str, db: AsyncSession = Depends(get_async_session)
 ):
     # Remove any whitespace or newline characters from the token string
     token = token.strip()
