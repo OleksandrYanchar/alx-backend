@@ -1,3 +1,4 @@
+from fastapi import Request
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 import jwt
 from configs.auth import ALGORITHM, SECRET
@@ -19,7 +20,7 @@ config = ConnectionConfig(
 )
 
 
-async def send_email(email: EmailSchema, user: Users):
+async def send_email(email: EmailSchema, user: Users, request: Request):
     token_data = {
         "user_id": str(user.id),  # Adjusting to match the verify_token expectations
         "username": user.username,
@@ -30,11 +31,15 @@ async def send_email(email: EmailSchema, user: Users):
     template_path = Path(__file__).parent.parent / "templates/send-verivication.html"
     with open(template_path, "r") as f:
         template = f.read()
-
-    template = template.replace("{{token}}", token)
+   
+    domain = request.base_url
+    path = request.url.path.replace('signup', 'verification')[1:]
+    
+    url = f'{domain}{path}?token={token}' 
+    
+    template = template.replace("url", url)
 
     # Assuming email_schema.email is a list and you want to send email to the first address in the list
-
     message = MessageSchema(
         subject="Email Verification",
         recipients=email,  # This is now a list, as expected by MessageSchema

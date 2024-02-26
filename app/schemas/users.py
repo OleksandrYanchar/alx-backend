@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, Field
 from datetime import date
@@ -22,14 +23,6 @@ class UserCreateOutSchema(BaseModel):
     last_name: str
     email: str
     joined_at: date
-
-    class Config:
-        from_attributes = True
-
-
-class UserLoginSchema(BaseModel):
-    username: str
-    password: str
 
     class Config:
         from_attributes = True
