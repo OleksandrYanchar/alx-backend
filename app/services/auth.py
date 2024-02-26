@@ -19,12 +19,17 @@ def verify_password(plain_password, hashed_pass):
 async def verify_user_credentials(
     username: str, password: str, session: AsyncSession = Depends(get_async_session)
 ) -> Users:
-    user = await get_object(Users, session=session, username=username)
-    if not user:
+    try:
+        user = await get_object(Users, session=session, username=username)
+    except Exception:
         user = await get_object(Users, session=session, email=username)
+    
+    # If user is still not found or password does not match, then raise an exception
     if not user or not pwd_context.verify(password, user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
         )
+    
     return user
+
