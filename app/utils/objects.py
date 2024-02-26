@@ -38,6 +38,7 @@ async def get_object(  model: Type[Base], session: AsyncSession,
     if not conditions:
         raise ValueError("No conditions provided for get_object.")
     
+    
     # Construct and execute a select query based on the provided conditions.
     query = select(model).filter(*conditions)
     result = await session.execute(query)
