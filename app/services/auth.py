@@ -20,6 +20,8 @@ async def verify_user_credentials(
     username: str, password: str, session: AsyncSession = Depends(get_async_session)
 ) -> Users:
     user = await get_object(Users, session=session, username=username)
+    if not user:
+        user = await get_object(Users, session=session, email=username)
     if not user or not pwd_context.verify(password, user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
