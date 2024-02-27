@@ -1,6 +1,7 @@
 from datetime import date
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from dependencies.auth import get_current_user
 from schemas.tokens import Token, TokenPayload, TokenRefreshRequest
 from utils.objects import get_object
 from services.tokens import (
@@ -12,8 +13,8 @@ from services.tokens import (
 )
 from services.email import send_email
 from dependencies.db import get_async_session
-from schemas.users import UserCreateSchema, UserCreateOutSchema
-from services.auth import get_password_hash, verify_user_credentials
+from schemas.users import UserCreateSchema, UserCreateOutSchema, UserPasswordChangechema
+from services.auth import get_password_hash, verify_password, verify_user_credentials
 from services.validators import is_unique, validate_password, validate_email
 from models.users import Users
 from fastapi.security import OAuth2PasswordRequestForm
@@ -134,12 +135,36 @@ async def login_for_access_token(
     )
     access_token = await create_access_token(data=token_payload)
     refresh_token = await create_refresh_token(data=token_payload)
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-    }
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
+
+@router.post("/password-change")
+async def change_password(user_request: UserPasswordChangechema, session: AsyncSession = Depends(get_async_session), user: Users = Depends(get_current_user)):
+    if not verify_password(user_request.old_password, user.password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Old password is incorrect.")
+    
+    if not await validate_password(user_request.new_password1):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password isn't valid")
+    
+    if user_request.new_password1 != user_request.new_password2:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Two passwords didn't match")
+
+    # Hash new password before saving
+    user.password = get_password_hash(user_request.new_password1)  
+    await session.commit()
+    await session.refresh(user)
+    
+    token_payload = TokenPayload(
+        user_id=str(user.id),
+        username=user.username,
+        is_activated=user.is_activated,
+        is_staff=user.is_staff,
+    )
+    
+    access_token = await create_access_token(data=token_payload)
+    refresh_token = await create_refresh_token(data=token_payload)
+    
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 @router.post("/token/refresh", response_model=Token)
 async def refresh_token(
