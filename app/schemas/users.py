@@ -11,9 +11,9 @@ class UserCreateSchema(BaseModel):
     last_name: str
     email: str
     joined_at: date = Field(default=date.today, description="user registration date?")
-
+      
     class Config:
-        from_attributes = True
+        from_attributes = True  
 
 
 class UserCreateOutSchema(BaseModel):
@@ -23,6 +23,23 @@ class UserCreateOutSchema(BaseModel):
     last_name: str
     email: str
     joined_at: date
+      
+    class Config:
+        from_attributes = True  
+
+        
+class UserLoginSchema(BaseModel):
+    username: str
+    password: str
 
     class Config:
-        from_attributes = True
+        from_attributes = True  
+
+
+class UserPasswordChangechema(BaseModel):
+    old_password: str
+    new_password1: str
+    new_password2: str
+
+    class Config:
+        from_attributes = True  
