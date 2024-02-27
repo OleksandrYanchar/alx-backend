@@ -11,7 +11,7 @@ from services.tokens import (
     is_token_blacklisted,
     verify_token,
 )
-from services.email import send_email
+from services.email import VerificationEmailSender
 from dependencies.db import get_async_session
 from schemas.users import UserCreateSchema, UserCreateOutSchema, UserPasswordChangechema
 from services.auth import get_password_hash, verify_password, verify_user_credentials
@@ -63,8 +63,10 @@ async def create_user(
                 await db.flush()
 
                 # Now send the email after flushing
-                await send_email([new_user.email], new_user, request)
+                email_sender = VerificationEmailSender()
 
+                # Send the email
+                await email_sender.send_email(new_user, request)
                 # Commit the transaction
                 await db.commit()
                 await db.refresh(new_user)
