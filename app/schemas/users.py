@@ -36,8 +36,15 @@ class UserLoginSchema(BaseModel):
         from_attributes = True  
 
 
-class UserPasswordChangechema(BaseModel):
+class UserPasswordChangeSchema(BaseModel):
     old_password: str
+    new_password1: str
+    new_password2: str
+
+    class Config:
+        from_attributes = True  
+
+class UserPasswordResetSchema(BaseModel):
     new_password1: str
     new_password2: str
 
