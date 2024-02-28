@@ -1,6 +1,7 @@
 from datetime import date
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from schemas.email import ForgotPasswordEmailSchema
 from dependencies.auth import get_current_user
 from schemas.tokens import Token, TokenPayload, TokenRefreshRequest
 from utils.objects import get_object
@@ -11,9 +12,10 @@ from services.tokens import (
     is_token_blacklisted,
     verify_token,
 )
-from services.email import VerificationEmailSender
+from sqlalchemy.exc import SQLAlchemyError
+from services.email import ResetPasswordEmailSender, VerificationEmailSender
 from dependencies.db import get_async_session
-from schemas.users import UserCreateSchema, UserCreateOutSchema, UserPasswordChangechema
+from schemas.users import UserCreateSchema, UserCreateOutSchema, UserPasswordChangeSchema, UserPasswordResetSchema
 from services.auth import get_password_hash, verify_password, verify_user_credentials
 from services.validators import is_unique, validate_password, validate_email
 from models.users import Users
@@ -141,7 +143,7 @@ async def login_for_access_token(
 
 
 @router.post("/password-change")
-async def change_password(user_request: UserPasswordChangechema, session: AsyncSession = Depends(get_async_session), user: Users = Depends(get_current_user)):
+async def change_password(user_request: UserPasswordChangeSchema, session: AsyncSession = Depends(get_async_session), user: Users = Depends(get_current_user)):
     if not verify_password(user_request.old_password, user.password):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Old password is incorrect.")
     
@@ -202,3 +204,73 @@ async def refresh_token(
     except Exception as e:
         logging.error(f"Error during token refresh: {e}")  # Log the error for debugging
         raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+
+@router.post('/password-forgot')
+async def forgot_password(identifier: ForgotPasswordEmailSchema, request: Request, db: AsyncSession = Depends(get_async_session)):
+    identifier = identifier.identifier
+    try:
+        user = await get_object(Users, session=db, username=identifier)
+    except Exception:
+        user = await get_object(Users, session=db, email=identifier)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect username or email",
+        ) 
+    email_sender = ResetPasswordEmailSender()
+
+    await email_sender.send_email(user, request)
+    
+    return {'detail': 'email was sent'}
+    
+
+@router.post("/password-reset")
+async def email_verification(token: str, user_request: UserPasswordResetSchema, db: AsyncSession = Depends(get_async_session)):
+    token = token.strip()
+    if not await is_token_blacklisted(token, db):  # Fix #1: await the function
+        try:
+            token_data = await verify_token(token, 'access')
+            user_id = str(token_data.user_id)
+
+            user = await get_object(Users, session=db, id=user_id)
+            if user:
+                if not await validate_password(user_request.new_password1):  # No need to try/except if you're going to raise the same exception
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password isn't valid")
+                
+                if user_request.new_password1 != user_request.new_password2:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Two passwords didn't match")
+
+                user.password = get_password_hash(user_request.new_password1)
+                await db.commit()
+                await db.refresh(user)
+
+                token_payload = TokenPayload(
+                    user_id=str(user.id),
+                    username=user.username,
+                    is_activated=user.is_activated,
+                    is_staff=user.is_staff,
+                )
+
+                await blacklist_token(token, db)  # Blacklist the token used for reset
+                
+                access_token = await create_access_token(data=token_payload)
+                refresh_token = await create_refresh_token(data=token_payload)
+                
+                return {
+                    "detail": "Password reset successfully. You can now login with your new password.",
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "token_type": "bearer"
+                }
+            else:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")  # More accurate error message
+
+        except HTTPException:  # Catch only HTTPExceptions here
+            raise
+        except Exception as e:  # Catch all other exceptions here
+            logging.error(f"An error occurred: {e}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error occurred during password reset")
+    else:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token is expired or invalid", headers={"WWW-Authenticate": "Bearer"})  # More accurate error message
+
