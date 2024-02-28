@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime, timedelta
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 import jwt
 from configs.auth import ALGORITHM, SECRET
@@ -76,22 +77,29 @@ class VerificationEmailSender(EmailSender):
         
         return prepared_template
     
+
 class ResetPasswordEmailSender(EmailSender):
-    
-    template_name = 'send-verification.html'
-    subject = "Verify Your Email Address"
-    
+    template_name = 'password-reset.html'
+    subject = "Password Reset"
+
     async def prepare_email_data(self, user, request, template):
+        # Current time
+        current_time = datetime.now()
+        # Token expiration time: current time + 10 minutes
+        exp_time = current_time + timedelta(minutes=10)
+
         token_data = {
             "user_id": str(user.id),
             "username": user.username,
+            "exp": exp_time.timestamp(),  # Add expiration time to the token data
         }
+
         token = jwt.encode(token_data, SECRET, algorithm=ALGORITHM)
-        
+
         domain = str(request.base_url)
-        path = request.url.path.replace('signup', 'verification')[1:]
-        
+        path = request.url.path.replace('password-forgot', 'password-reset')[1:]
+
         url = f'{domain}{path}?token={token}'
         prepared_template = template.replace("href=\"url\"", f"href=\"{url}\"")  # Correct replacement for the actual href
-        
+
         return prepared_template
