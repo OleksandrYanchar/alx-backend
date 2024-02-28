@@ -274,3 +274,17 @@ async def email_verification(token: str, user_request: UserPasswordResetSchema, 
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token is expired or invalid", headers={"WWW-Authenticate": "Bearer"})  # More accurate error message
 
+
+@router.post('/delete')
+async def delete_account(user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_async_session)):
+    try:
+        await db.delete(user)
+        await db.commit()
+        return {"detail": "User deleted successfully."}
+    except SQLAlchemyError as e:
+            await db.rollback()
+            logging.error(f"Error deleting user: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Could not delete user."
+            )
