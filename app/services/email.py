@@ -45,41 +45,43 @@ class EmailSender(ABC):
         # Utilizing template_name defined in the subclass
         base_template = await self.load_template(self.template_name)
         prepared_template = await self.prepare_email_data(user, request, base_template)
-        
+
         message = MessageSchema(
             subject=self.subject,  # Utilizing subject defined in the subclass
             recipients=[user.email],  # Assuming 'email' attribute in 'user'
             body=prepared_template,
             subtype="html",
         )
-        
+
         fm = FastMail(self.config)
         await fm.send_message(message)
-        
-        
+
+
 class VerificationEmailSender(EmailSender):
-    
-    template_name = 'send-verification.html'
+
+    template_name = "send-verification.html"
     subject = "Verify Your Email Address"
-    
+
     async def prepare_email_data(self, user, request, template):
         token_data = {
             "user_id": str(user.id),
             "username": user.username,
         }
         token = jwt.encode(token_data, SECRET, algorithm=ALGORITHM)
-        
+
         domain = str(request.base_url)
-        path = request.url.path.replace('signup', 'verification')[1:]
-        
-        url = f'{domain}{path}?token={token}'
-        prepared_template = template.replace("href=\"url\"", f"href=\"{url}\"")  # Correct replacement for the actual href
-        
+        path = request.url.path.replace("signup", "verification")[1:]
+
+        url = f"{domain}{path}?token={token}"
+        prepared_template = template.replace(
+            'href="url"', f'href="{url}"'
+        )  # Correct replacement for the actual href
+
         return prepared_template
-    
+
 
 class ResetPasswordEmailSender(EmailSender):
-    template_name = 'password-reset.html'
+    template_name = "password-reset.html"
     subject = "Password Reset"
 
     async def prepare_email_data(self, user, request, template):
@@ -97,14 +99,15 @@ class ResetPasswordEmailSender(EmailSender):
         token = jwt.encode(token_data, SECRET, algorithm=ALGORITHM)
 
         domain = str(request.base_url)
-        path = request.url.path.replace('password-forgot', 'password-reset')[1:]
+        path = request.url.path.replace("password-forgot", "password-reset")[1:]
 
-        url = f'{domain}{path}?token={token}'
-        prepared_template = template.replace("href=\"url\"", f"href=\"{url}\"")  # Correct replacement for the actual href
+        url = f"{domain}{path}?token={token}"
+        prepared_template = template.replace(
+            'href="url"', f'href="{url}"'
+        )  # Correct replacement for the actual href
         return prepared_template
-    
-    
-    
+
+
 verify_email_sender = VerificationEmailSender()
 
 reset_email_sender = ResetPasswordEmailSender()

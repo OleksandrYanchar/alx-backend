@@ -1,6 +1,7 @@
 from typing import Optional
 from pydantic import BaseModel
 
+
 # TokenPayload Schema
 # This schema is used for the actual payload in both the access and refresh tokens.
 # It could be the same for simplification, or you might differentiate payloads

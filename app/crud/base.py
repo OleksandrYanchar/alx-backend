@@ -13,9 +13,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def __init__(self, model: Type[ModelType]) -> None:
         self._model = model
 
-    async def create(
-        self, db: AsyncSession, obj_in: CreateSchemaType
-    ) -> ModelType:
+    async def create(self, db: AsyncSession, obj_in: CreateSchemaType) -> ModelType:
         obj_in_data = dict(obj_in)
         db_obj = self._model(**obj_in_data)
         db.add(db_obj)

@@ -3,6 +3,7 @@ from datetime import date
 from typing import Optional
 from schemas.tokens import TokenSchema
 
+
 class UserCreateInSchema(BaseModel):
     username: str
     password: str
@@ -10,27 +11,27 @@ class UserCreateInSchema(BaseModel):
     last_name: Optional[str] = None
     email: str
     # Use default_factory=date.today to ensure the current date is used as default
-    joined_at: date = Field(default_factory=date.today, description="User registration date")
-      
+    joined_at: date = Field(
+        default_factory=date.today, description="User registration date"
+    )
+
     class Config:
         from_attributes = True  # Assuming you are using this model with SQLAlchemy
-
 
 
 class UserCreateOutSchema(BaseModel):
     first_name: str
     email: str
-    
+
     tokens: TokenSchema
 
 
-        
 class UserLoginSchema(BaseModel):
     username: str
     password: str
 
     class Config:
-        from_attributes = True  
+        from_attributes = True
 
 
 class UserPasswordChangeSchema(BaseModel):
@@ -39,11 +40,12 @@ class UserPasswordChangeSchema(BaseModel):
     new_password2: str
 
     class Config:
-        from_attributes = True  
+        from_attributes = True
+
 
 class UserPasswordResetSchema(BaseModel):
     new_password1: str
     new_password2: str
 
     class Config:
-        from_attributes = True  
+        from_attributes = True

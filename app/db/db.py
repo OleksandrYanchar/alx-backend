@@ -1,5 +1,4 @@
 from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.orm import DeclarativeBase
 from configs.db import DB_HOST, DB_NAME, DB_PASS, DB_PORT, DB_USER
 from typing import Any, Dict
 
@@ -11,7 +10,6 @@ from sqlalchemy.ext.declarative import as_declarative, declared_attr
 DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 engine = create_async_engine(DATABASE_URL)
-
 
 
 @as_declarative()

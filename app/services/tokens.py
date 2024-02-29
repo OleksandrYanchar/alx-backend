@@ -24,19 +24,24 @@ async def create_jwt_tokens(user: Users) -> TokenSchema:
         is_activated=user.is_activated,
         is_staff=user.is_staff,
     )
-    
+
     to_encode = token_payload.dict()
-    
-    access_token_expire = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    access_token_expire = datetime.now() + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    )
     to_encode.update({"exp": access_token_expire.timestamp()})
     encoded_access = jwt.encode(to_encode, SECRET, algorithm=ALGORITHM)
-    
-    refresh_token_expire = datetime.now() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": refresh_token_expire.timestamp()})  # Ensure to use `.timestamp()`
-    encoded_refresh = jwt.encode(to_encode, REFRESH_SECRET, algorithm=ALGORITHM)
-    
-    return TokenSchema(access_token=encoded_access, refresh_token=encoded_refresh, token_type="bearer")
 
+    refresh_token_expire = datetime.now() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update(
+        {"exp": refresh_token_expire.timestamp()}
+    )  # Ensure to use `.timestamp()`
+    encoded_refresh = jwt.encode(to_encode, REFRESH_SECRET, algorithm=ALGORITHM)
+
+    return TokenSchema(
+        access_token=encoded_access, refresh_token=encoded_refresh, token_type="bearer"
+    )
 
 
 async def verify_token(token: str, token_type: str) -> TokenPayloadSchema:
@@ -61,7 +66,9 @@ async def verify_token(token: str, token_type: str) -> TokenPayloadSchema:
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid token payload: missing username",
                 )
-            return TokenPayloadSchema(user_id=user_id, username=username, is_staff=is_staff)
+            return TokenPayloadSchema(
+                user_id=user_id, username=username, is_staff=is_staff
+            )
 
         # If it's a refresh token, you might return a simpler payload
         return TokenPayloadSchema(user_id=user_id)
