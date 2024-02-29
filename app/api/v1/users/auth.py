@@ -288,3 +288,8 @@ async def delete_account(user: Users = Depends(get_current_user), db: AsyncSessi
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Could not delete user."
             )
+
+
+@router.post('/logout')
+async def logout():
+    return {"detail": "You was logout"}
