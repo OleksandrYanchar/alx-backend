@@ -101,5 +101,10 @@ class ResetPasswordEmailSender(EmailSender):
 
         url = f'{domain}{path}?token={token}'
         prepared_template = template.replace("href=\"url\"", f"href=\"{url}\"")  # Correct replacement for the actual href
-
         return prepared_template
+    
+    
+    
+verify_email_sender = VerificationEmailSender()
+
+reset_email_sender = ResetPasswordEmailSender()
