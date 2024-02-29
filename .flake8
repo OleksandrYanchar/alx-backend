@@ -29,8 +29,7 @@ exclude =
     tests.py
     dev.py
     prod.py
-
-
+    app/migrations/
 
 # List of files to include for checks.
 filename = *.py

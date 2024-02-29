@@ -1,39 +1,37 @@
-from typing import Optional
-from uuid import UUID
 from pydantic import BaseModel, Field
 from datetime import date
+from typing import Optional
+from schemas.tokens import TokenSchema
 
 
-class UserCreateSchema(BaseModel):
+class UserCreateInSchema(BaseModel):
     username: str
     password: str
     first_name: str
-    last_name: str
+    last_name: Optional[str] = None
     email: str
-    joined_at: date = Field(default=date.today, description="user registration date?")
-      
+    # Use default_factory=date.today to ensure the current date is used as default
+    joined_at: date = Field(
+        default_factory=date.today, description="User registration date"
+    )
+
     class Config:
-        from_attributes = True  
+        from_attributes = True  # Assuming you are using this model with SQLAlchemy
 
 
 class UserCreateOutSchema(BaseModel):
-    id: UUID
-    username: str
     first_name: str
-    last_name: str
     email: str
-    joined_at: date
-      
-    class Config:
-        from_attributes = True  
 
-        
+    tokens: TokenSchema
+
+
 class UserLoginSchema(BaseModel):
     username: str
     password: str
 
     class Config:
-        from_attributes = True  
+        from_attributes = True
 
 
 class UserPasswordChangeSchema(BaseModel):
@@ -42,11 +40,12 @@ class UserPasswordChangeSchema(BaseModel):
     new_password2: str
 
     class Config:
-        from_attributes = True  
+        from_attributes = True
+
 
 class UserPasswordResetSchema(BaseModel):
     new_password1: str
     new_password2: str
 
     class Config:
-        from_attributes = True  
+        from_attributes = True

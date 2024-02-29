@@ -5,6 +5,8 @@ from fastapi import HTTPException, status
 from jose import ExpiredSignatureError, JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from models.users import Users
+from schemas.tokens import TokenPayloadSchema, TokenSchema
 from models.tokens import BlacklistedToken
 from configs.auth import (
     SECRET,
@@ -14,39 +16,36 @@ from configs.auth import (
     ALGORITHM,
 )
 
-# Assuming you have a TokenPayload model defined somewhere
-from schemas.tokens import TokenPayload
+
+async def create_jwt_tokens(user: Users) -> TokenSchema:
+    token_payload = TokenPayloadSchema(
+        user_id=str(user.id),
+        username=user.username,
+        is_activated=user.is_activated,
+        is_staff=user.is_staff,
+    )
+
+    to_encode = token_payload.dict()
+
+    access_token_expire = datetime.now() + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+    to_encode.update({"exp": access_token_expire.timestamp()})
+    encoded_access = jwt.encode(to_encode, SECRET, algorithm=ALGORITHM)
+
+    refresh_token_expire = datetime.now() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update(
+        {"exp": refresh_token_expire.timestamp()}
+    )  # Ensure to use `.timestamp()`
+    encoded_refresh = jwt.encode(to_encode, REFRESH_SECRET, algorithm=ALGORITHM)
+
+    return TokenSchema(
+        access_token=encoded_access, refresh_token=encoded_refresh, token_type="bearer"
+    )
 
 
-async def create_access_token(
-    *, data: TokenPayload, expires_delta: Optional[timedelta] = None
-) -> str:
-    to_encode = data.dict()  # Convert Pydantic model to dict
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire.timestamp()})
-    encoded_jwt = jwt.encode(to_encode, SECRET, algorithm=ALGORITHM)
-    return encoded_jwt
-
-
-async def create_refresh_token(
-    *, data: TokenPayload, expires_delta: Optional[timedelta] = None
-) -> str:
-    to_encode = data.dict()  # Again, convert to dict before updating
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire})
-    # Note: Here should be REFRESH_SECRET instead of SECRET if you intend to use a different secret for refresh tokens
-    encoded_jwt = jwt.encode(to_encode, REFRESH_SECRET, algorithm=ALGORITHM)
-    return encoded_jwt
-
-
-async def verify_token(token: str, token_type: str) -> TokenPayload:
-    secret = REFRESH_SECRET if token_type == "refresh" else SECRET
+async def verify_token(token: str, token_type: str) -> TokenPayloadSchema:
+    secret = REFRESH_SECRET if token_type == "refresh_token" else SECRET
     try:
         payload = jwt.decode(token, secret, algorithms=[ALGORITHM])
 
@@ -67,10 +66,12 @@ async def verify_token(token: str, token_type: str) -> TokenPayload:
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid token payload: missing username",
                 )
-            return TokenPayload(user_id=user_id, username=username, is_staff=is_staff)
+            return TokenPayloadSchema(
+                user_id=user_id, username=username, is_staff=is_staff
+            )
 
         # If it's a refresh token, you might return a simpler payload
-        return TokenPayload(user_id=user_id)
+        return TokenPayloadSchema(user_id=user_id)
 
     except ExpiredSignatureError:
         raise HTTPException(
