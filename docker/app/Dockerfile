@@ -1,12 +1,12 @@
 FROM python:3.10
 
+COPY static/media/avatars/no_avatar.jpg /static/media/avatars/no_avatar.jpg
 WORKDIR /app
 
 RUN apt update && apt -qy upgrade
 
 # Copy the entire requirements directory
 COPY requirements /app/requirements
-
 # Install dependencies from dev.txt
 RUN pip install -r requirements/dev.txt
 

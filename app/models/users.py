@@ -20,4 +20,4 @@ class Users(Base):
     is_activated: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_vip: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_staff: Mapped[bool] = mapped_column(nullable=False, default=False)
-    image: Mapped[str] = mapped_column(nullable=False, default="no_avatar.png")
+    image: Mapped[str] = mapped_column(nullable=False, default="media/avatars/no_avatar.jpg")

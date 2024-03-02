@@ -1,10 +1,13 @@
 from pydantic import BaseModel, Field
 from datetime import date
 from typing import Optional
+import uuid
 from schemas.tokens import TokenSchema
 
 
 class UserCreateInSchema(BaseModel):
+    id: uuid.UUID =  Field(
+        default_factory=uuid.uuid4, description="user id")
     username: str
     password: str
     first_name: str
@@ -20,6 +23,7 @@ class UserCreateInSchema(BaseModel):
 
 
 class UserCreateOutSchema(BaseModel):
+    id: uuid.UUID
     first_name: str
     email: str
 
@@ -49,3 +53,10 @@ class UserPasswordResetSchema(BaseModel):
 
     class Config:
         from_attributes = True
+        
+class UserDataSchema(BaseModel):
+    username: str
+    joined_at: date
+    first_name : str
+    email : str
+    is_vip: bool
