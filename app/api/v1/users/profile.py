@@ -1,6 +1,7 @@
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 import secrets
+from schemas.users import UserDataSchema
 from models.users import Users
 from dependencies.db import get_async_session
 from dependencies.auth import get_current_user
@@ -9,11 +10,26 @@ from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 import aiofiles
 from crud.users import crud_user
+import uuid
 
 router = APIRouter(
     prefix="/profile",
     tags=["profile"],
 )
+
+@router.get('/{user_id}', response_model=UserDataSchema)
+async def get_user_info(user_id: uuid.UUID, db: AsyncSession = Depends(get_async_session) ):
+    
+    user = await crud_user.get(db, id=user_id)
+    
+    if user is None:
+    
+            raise HTTPException(
+                status_code=404,
+                detail="The user with this username does not exist in the system",
+            )
+        
+    return user
 
 
 @router.post('/update-image/')
