@@ -4,6 +4,9 @@ from fastapi.responses import UJSONResponse
 from api.v1.routers import router as v1_router
 from fastapi import APIRouter
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from configs.general import STATIC_FILES_PATH
 
 app = FastAPI(
     title="FastAPI Starter Project",
@@ -29,6 +32,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-    
+
+app.mount('/static', StaticFiles(directory=STATIC_FILES_PATH))
+
 if __name__ == "__main__":
     uvicorn.run(app="main:app", host="0.0.0.0", port=8000, reload=True)
