@@ -53,7 +53,7 @@ services:
     ports:
       - "5050:80"
     env_file:
-      - ./docker/.env
+      - .env
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
