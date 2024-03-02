@@ -9,6 +9,7 @@ from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 import aiofiles
 from crud.users import crud_user
+
 router = APIRouter(
     prefix="/profile",
     tags=["profile"],
