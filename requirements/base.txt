@@ -18,3 +18,4 @@ alembic
 python-jose
 python-multipart
 humps
+aiofiles
