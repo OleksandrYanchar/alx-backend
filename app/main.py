@@ -38,7 +38,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount('/static', StaticFiles(directory=STATIC_FILES_PATH))
+try:
+    app.mount('/static', StaticFiles(directory=STATIC_FILES_PATH))
+except Exception:
+    app.mount('/static', StaticFiles(directory=f'../{STATIC_FILES_PATH}'))
 
 
 if __name__ == "__main__":
