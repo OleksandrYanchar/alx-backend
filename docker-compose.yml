@@ -27,24 +27,7 @@ services:
     volumes:
       - .:/app
     command: 'sh -c "alembic upgrade head && python app/main.py --host 0.0.0.0 --port 8000"'
-    depends_on:
-      - alx-db
 
-
-  alx-db:
-    container_name: alx-db
-    image: postgres:15
-    restart: always
-    env_file:
-      - .env
-    environment:
-      - POSTGRES_DB=${DB_NAME}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASS}
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
 
   pgadmin:
     container_name: pgadmin
@@ -58,8 +41,6 @@ services:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
       PGADMIN_LISTEN_PORT: ${PGADMIN_LISTEN_PORT}
-    depends_on:
-      - alx-db
 
 volumes:
   postgres_data:
