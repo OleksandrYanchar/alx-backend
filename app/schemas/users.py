@@ -59,4 +59,4 @@ class UserDataSchema(BaseModel):
     joined_at: date
     first_name : str
     email : str
-    
+    is_vip: bool
