@@ -17,5 +17,5 @@ ujson
 alembic
 python-jose
 python-multipart
-humps
+pyhumps
 aiofiles
