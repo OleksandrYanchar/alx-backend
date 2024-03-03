@@ -1,3 +1,4 @@
+import uuid
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
@@ -16,6 +17,7 @@ class PostCreateInSchema(BaseModel):
         from_attributes = True  # Assuming you are using this model with SQLAlchemy
 
 class PostInfoSchema(BaseModel):
+    id: uuid.UUID
     owner: UserDataSchema
     title: str
     category: str
