@@ -7,7 +7,7 @@ async def is_user_activated(
     user: Users = Depends(get_current_user),
 ) -> bool:
     if user.is_activated:
-        return user.id
+        return True
     else:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User isn't activated"
