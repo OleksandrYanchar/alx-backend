@@ -28,7 +28,9 @@ class Post(Base):
     __tablename__ = "posts"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True)
+    UUID(as_uuid=True), 
+    primary_key=True, 
+    default=uuid.uuid4)
     
     owner: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'))  
     category_id: Mapped[int] = mapped_column(ForeignKey('categories.id', ondelete='CASCADE'), nullable=False)
@@ -37,7 +39,7 @@ class Post(Base):
     title: Mapped[str] = mapped_column(String(64), nullable=False)
     price : Mapped[float] = mapped_column(Numeric(10,2), nullable=False)
     description: Mapped[str] = mapped_column(String(512), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(nullable=True)
     is_vip: Mapped[bool] = mapped_column(nullable=False, default=False)
     image: Mapped[str] = mapped_column(nullable=False, default="media/products/no_avatar.jpg")
