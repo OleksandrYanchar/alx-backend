@@ -1,5 +1,6 @@
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import date
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from models.posts import Post
 from services.pagination import get_total_count
 from schemas.pagination import PaginationSchema
@@ -29,6 +30,12 @@ async def create_post_handler(
     owner: Users= Depends(get_current_user),  # Assuming this correctly extracts the user and its UUID
     db: AsyncSession = Depends(get_async_session),
 ) -> PostInfoSchema:
+
+    if post_data.price < 0 :
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="price can't be negative",
+        )
 
     # Assuming you fetch the category object before this call
     category = await crud_category.get(db, title= await clean_title(post_data.category))
@@ -137,12 +144,43 @@ async def get_posts_by_username(username: str, offset: int = 0  , limit: int = 2
     return PaginationSchema[PostInfoSchema](total=total, items=result_posts, offset=offset, limit=limit)
 
 @router.get("/category/{slug}", response_model=PaginationSchema[PostInfoSchema])
-async def get_posts_by_username(slug: str, offset: int = 0  , limit: int = 2, db: AsyncSession=Depends(get_async_session)):
+async def get_posts_by_category(slug: str, offset: int = 0  , limit: int = 2, db: AsyncSession=Depends(get_async_session)):
      
     category_obj = await crud_category.get(db, slug=slug)
     
+    if not category_obj:
+        raise HTTPException(status_code=404, detail="category not found")
+ 
     posts = await crud_post.get_multi(db, category_id=category_obj.id, offset=offset, limit=limit)
     total = await get_total_count(db, Post, Post.category_id == category_obj.id)
+    
+    result_posts = []
+    for post in posts:
+        category = await crud_category.get(db, id=post.category_id)
+        subcategory = await crud_subcategory.get(db, id=post.sub_category_id)
+        
+        owner =  await crud_user.get(db, id=post.owner)
+        
+        post_data = post.dict()
+        
+        if 'owner' in post_data:
+            del post_data['owner']
+        
+        post_data['category'] = category.title if category else "Category not found"
+        post_data['subcategory'] = subcategory.title if subcategory else "Subcategory not found"
+        
+        owner_data = UserDataSchema(**owner.dict())
+        post_info = PostInfoSchema(**post_data, owner=owner_data)
+        
+        result_posts.append(post_info)
+
+    return PaginationSchema[PostInfoSchema](total=total, items=result_posts, offset=offset, limit=limit)    
+
+@router.get("/name/{slug}", response_model=PaginationSchema[PostInfoSchema])
+async def get_posts_by_title(slug: str, offset: int = 0  , limit: int = 2, db: AsyncSession=Depends(get_async_session)):
+     
+    posts = await crud_post.get_multi(db, slug=slug, offset=offset, limit=limit)
+    total = await get_total_count(db, Post, Post.slug == slug)
     
     result_posts = []
     for post in posts:
