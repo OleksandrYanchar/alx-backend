@@ -1,9 +1,13 @@
+from operator import and_
 import re
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from crud.base import ModelType
 from crud.categories import crud_category, crud_subcategory
 from schemas.categories import CreateCategorySchema, CategoryInfoSchema, CreateSubCategorySchema, SubCategoryCrateInfoSchema
-
+from typing import Any, Optional, List, Type
+from sqlalchemy.future import select
+import datetime
 
 async def clean_title(title: str) -> str:
     title = title.strip().lower()
@@ -67,13 +71,13 @@ async def perfome_create_subcategory(
     title = await clean_title(subcategory_data.title)
     slug = await create_slug(title)
     
-    if len(title) >64:
+    if len(title) > 64:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"title is too long, max:64, yours is:{len(title)}",
         )
 
-    if len(slug) >128:
+    if len(slug) > 128:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"slug is too long, max:128, yours is:{len(slug)}"
@@ -87,11 +91,15 @@ async def perfome_create_subcategory(
     if await crud_subcategory.get(db, slug=slug):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="this slug already exists.",
+            detail="This slug already exists.",
         )
     
-    
-    category = await crud_category.get(db, title= await clean_title(subcategory_data.category))
+    category = await crud_category.get(db, title=await clean_title(subcategory_data.category))
+    if not category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The specified category does not exist.",
+        )
 
     # Prepare the data for subcategory creation
     subcategory_data_dict = subcategory_data.dict(exclude={'category'})

@@ -19,6 +19,7 @@ class PostCreateInSchema(BaseModel):
 class PostInfoSchema(BaseModel):
     id: uuid.UUID
     owner: UserDataSchema
+    slug:str
     title: str
     category: str
     subcategory: str
@@ -35,6 +36,7 @@ class PostInfoSchema(BaseModel):
 class PostUpdateSchema(BaseModel):
 
     title: str
+    slug:str
     category: str
     subcategory: str
     price: float
