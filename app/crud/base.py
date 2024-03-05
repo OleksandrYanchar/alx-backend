@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
-from sqlalchemy import cast, Float
-
+from sqlalchemy import func
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -69,3 +68,51 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await db.delete(db_obj)
         await db.commit()
         return db_obj
+
+
+    async def get_multi_filtered(
+        self,
+        db: AsyncSession,
+        *args,
+        offset: int = 0,
+        limit: int = 100,
+        created_start_date: Optional[datetime] = None,
+        created_end_date: Optional[datetime] = None,
+        is_vip: Optional[bool] = None,
+        min_price: Optional[float] = None,
+        max_price: Optional[float] = None,
+        created_at_field_name: str = 'created_at',
+        vip_field_name: str = 'is_vip', 
+        price_field_name: str = 'price',
+        **kwargs
+    ) -> List[ModelType]:
+        # Build the base query with all conditions but without offset and limit
+        query = select(self._model).filter(*args)
+
+        # Apply filters based on provided parameters
+        if created_start_date:
+            query = query.filter(getattr(self._model, created_at_field_name) >= created_start_date)
+        if created_end_date:
+            query = query.filter(getattr(self._model, created_at_field_name) <= created_end_date)
+        if is_vip is not None:
+            query = query.filter(getattr(self._model, vip_field_name) == is_vip)
+        if min_price is not None:
+            query = query.filter(getattr(self._model, price_field_name) >= min_price)
+        if max_price is not None:
+            query = query.filter(getattr(self._model, price_field_name) <= max_price)
+
+        # If additional filters are provided via kwargs (ensure they match column names)
+        if kwargs:
+            query = query.filter_by(**kwargs)
+
+        # Calculate total count before applying offset and limit
+        total_count_query = select(func.count()).select_from(query.subquery())
+        total_count_result = await db.execute(total_count_query)
+        total = total_count_result.scalar_one()
+
+        # Now apply offset and limit to the original query for pagination
+        query = query.offset(offset).limit(limit)
+        result = await db.execute(query)
+        posts = result.scalars().all()
+
+        return posts, total
