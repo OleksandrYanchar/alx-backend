@@ -116,13 +116,35 @@ async def get_post(id: str, db: AsyncSession=Depends(get_async_session)) -> Post
 
 
 @router.get("/user/{username}/all", response_model=PaginationSchema[PostInfoSchema])
-async def get_posts_by_username(username: str, offset: int = 0  , limit: int = 2, db: AsyncSession=Depends(get_async_session)):
+async def get_posts_by_username(username: str, 
+    offset: int = Query(default=0),  
+    limit: int = Query(default=2), 
+    created_start_date: Optional[date] = None,
+    created_end_date: Optional[date] = None,
+    is_vip: Optional[bool] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    db: AsyncSession = Depends(get_async_session)
+) -> PaginationSchema[PostInfoSchema]:
+    
     owner = await crud_user.get(db, username=username)
     if not owner:
         raise HTTPException(status_code=404, detail="Owner not found")
+    posts, total = await crud_post.get_multi_filtered(
+        db, 
+        owner=owner.id, 
+        offset=offset, 
+        limit=limit,
+        is_vip=is_vip,
+        min_price=min_price,
+        max_price=max_price,
+        created_start_date=created_start_date,
+        created_end_date=created_end_date,
+        created_at_field_name = 'created_at',  
+        vip_field_name = 'is_vip', 
+        price_field_name = 'price',
+    )
     
-    posts = await crud_post.get_multi(db, owner=owner.id, offset=offset, limit=limit)
-    total = await get_total_count(db, Post, Post.owner == owner.id)
     
     result_posts = []
     for post in posts:
@@ -138,21 +160,43 @@ async def get_posts_by_username(username: str, offset: int = 0  , limit: int = 2
         
         owner_data = UserDataSchema(**owner.dict())
         post_info = PostInfoSchema(**post_data, owner=owner_data)
-        
+                
         result_posts.append(post_info)
 
+        
     return PaginationSchema[PostInfoSchema](total=total, items=result_posts, offset=offset, limit=limit)
 
 @router.get("/category/{slug}", response_model=PaginationSchema[PostInfoSchema])
-async def get_posts_by_category(slug: str, offset: int = 0  , limit: int = 2, db: AsyncSession=Depends(get_async_session)):
+async def get_posts_by_category(slug: str, 
+    offset: int = Query(default=0),  
+    limit: int = Query(default=2), 
+    created_start_date: Optional[date] = None,
+    created_end_date: Optional[date] = None,
+    is_vip: Optional[bool] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    db: AsyncSession = Depends(get_async_session)
+) -> PaginationSchema[PostInfoSchema]:
      
     category_obj = await crud_category.get(db, slug=slug)
     
     if not category_obj:
         raise HTTPException(status_code=404, detail="category not found")
  
-    posts = await crud_post.get_multi(db, category_id=category_obj.id, offset=offset, limit=limit)
-    total = await get_total_count(db, Post, Post.category_id == category_obj.id)
+    posts, total = await crud_post.get_multi_filtered(
+        db, 
+        sub_category_id=category_obj.id, 
+        offset=offset, 
+        limit=limit,
+        is_vip=is_vip,
+        min_price=min_price,
+        max_price=max_price,
+        created_start_date=created_start_date,
+        created_end_date=created_end_date,
+        created_at_field_name = 'created_at',  
+        vip_field_name = 'is_vip', 
+        price_field_name = 'price',
+    )
     
     result_posts = []
     for post in posts:
@@ -174,13 +218,35 @@ async def get_posts_by_category(slug: str, offset: int = 0  , limit: int = 2, db
         
         result_posts.append(post_info)
 
+
     return PaginationSchema[PostInfoSchema](total=total, items=result_posts, offset=offset, limit=limit)    
 
-@router.get("/name/{slug}", response_model=PaginationSchema[PostInfoSchema])
-async def get_posts_by_title(slug: str, offset: int = 0  , limit: int = 2, db: AsyncSession=Depends(get_async_session)):
+@router.get("/title/{slug}", response_model=PaginationSchema[PostInfoSchema])
+async def get_posts_by_title(slug: str, 
+    offset: int = Query(default=0),  
+    limit: int = Query(default=2), 
+    created_start_date: Optional[date] = None,
+    created_end_date: Optional[date] = None,
+    is_vip: Optional[bool] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    db: AsyncSession = Depends(get_async_session)
+)-> PaginationSchema[PostInfoSchema]:
      
-    posts = await crud_post.get_multi(db, slug=slug, offset=offset, limit=limit)
-    total = await get_total_count(db, Post, Post.slug == slug)
+    posts,total = await crud_post.get_multi_filtered(
+        db, 
+        slug=slug,
+        offset=offset, 
+        limit=limit,
+        is_vip=is_vip,
+        min_price=min_price,
+        max_price=max_price,
+        created_start_date=created_start_date,
+        created_end_date=created_end_date,
+        created_at_field_name = 'created_at',  
+        vip_field_name = 'is_vip', 
+        price_field_name = 'price',
+    )
     
     result_posts = []
     for post in posts:
@@ -203,21 +269,50 @@ async def get_posts_by_title(slug: str, offset: int = 0  , limit: int = 2, db: A
         result_posts.append(post_info)
 
     return PaginationSchema[PostInfoSchema](total=total, items=result_posts, offset=offset, limit=limit)    
+
 
 
 @router.get("/{category_slug}/{subcategory_slug}", response_model=PaginationSchema[PostInfoSchema])
-async def get_posts_by_username(subcategory_slug: str, category_slug: str, offset: int = 0  , limit: int = 2, db: AsyncSession=Depends(get_async_session)):
-     
+async def get_posts_by_category_and_sub_category(
+    subcategory_slug: str, 
+    category_slug: str, 
+    offset: int = Query(default=0),  
+    limit: int = Query(default=2), 
+    created_start_date: Optional[date] = None,
+    created_end_date: Optional[date] = None,
+    is_vip: Optional[bool] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    db: AsyncSession = Depends(get_async_session)
+):
     subcategory_obj = await crud_subcategory.get(db, slug=subcategory_slug)
-    
     category_obj = await crud_category.get(db, slug=category_slug)
 
+    if not subcategory_obj:
+        raise HTTPException(status_code=404, detail="Subcategory not found")
+
+    if not category_obj:
+        raise HTTPException(status_code=404, detail="Category not found")
+
     if subcategory_obj.category_id != category_obj.id:
-        raise HTTPException(status_code=404, detail="Category or Subcategory not found")
-    
-    posts = await crud_post.get_multi(db, sub_category_id=subcategory_obj.id, offset=offset, limit=limit)
-    total = await get_total_count(db, Post, Post.sub_category_id == subcategory_obj.id)
-    
+        raise HTTPException(status_code=404, detail=f"{subcategory_obj.title} in {category_obj.title} not found")
+
+    # Here you'd call the new get_multi_filtered method instead of get_multi,
+    # passing the new filters as arguments. For illustration, the call is kept generic.
+    posts, total = await crud_post.get_multi_filtered(
+        db, 
+        sub_category_id=subcategory_obj.id, 
+        offset=offset, 
+        limit=limit,
+        is_vip=is_vip,
+        min_price=min_price,
+        max_price=max_price,
+        created_start_date=created_start_date,
+        created_end_date=created_end_date,
+        created_at_field_name = 'created_at',  
+        vip_field_name = 'is_vip', 
+        price_field_name = 'price',
+    )
     result_posts = []
     for post in posts:
         category = await crud_category.get(db, id=post.category_id)
@@ -237,5 +332,6 @@ async def get_posts_by_username(subcategory_slug: str, category_slug: str, offse
         post_info = PostInfoSchema(**post_data, owner=owner_data)
         
         result_posts.append(post_info)
+        
 
     return PaginationSchema[PostInfoSchema](total=total, items=result_posts, offset=offset, limit=limit)    
