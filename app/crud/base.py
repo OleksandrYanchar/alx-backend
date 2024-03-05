@@ -4,6 +4,7 @@ from sqlalchemy import func
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import desc, asc
 
 ModelType = TypeVar("ModelType")
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -81,9 +82,11 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         is_vip: Optional[bool] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
+        order_by: Optional[str] = None,
         created_at_field_name: str = 'created_at',
         vip_field_name: str = 'is_vip', 
         price_field_name: str = 'price',
+        
         **kwargs
     ) -> List[ModelType]:
         # Build the base query with all conditions but without offset and limit
@@ -111,6 +114,27 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         total = total_count_result.scalar_one()
 
         # Now apply offset and limit to the original query for pagination
+
+        if order_by == 'newest':
+                query = query.order_by(desc(getattr(self._model, vip_field_name)), 
+                                    desc(getattr(self._model, created_at_field_name)))
+        elif order_by == 'oldest':
+            query = query.order_by(desc(getattr(self._model, vip_field_name)), 
+                                asc(getattr(self._model, created_at_field_name)))
+        elif order_by == 'cheapest':
+            query = query.order_by(desc(getattr(self._model, vip_field_name)), 
+                                asc(getattr(self._model, price_field_name)))
+        elif order_by == 'expensive':
+            query = query.order_by(desc(getattr(self._model, vip_field_name)), 
+                                desc(getattr(self._model, price_field_name)))
+        else:
+            # If no specific sorting is provided, default to prioritizing VIPs first
+            query = query.order_by(desc(getattr(self._model, vip_field_name)))
+
+        # Calculate total count before applying offset and limit
+        # Your total count logic here...
+
+        # Apply offset and limit for pagination
         query = query.offset(offset).limit(limit)
         result = await db.execute(query)
         posts = result.scalars().all()
