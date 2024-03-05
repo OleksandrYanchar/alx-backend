@@ -81,6 +81,59 @@ async def create_post_handler(
     return PostInfoSchema(**post_info, owner=UserDataSchema(**owner.dict()), category=category.title, subcategory=subcategory.title)
 
 
+@router.get("/all", response_model=PaginationSchema[PostInfoSchema])
+async def get_all_posts( 
+    offset: int = Query(default=0),  
+    limit: int = Query(default=2), 
+    order_by: str = None,
+    created_start_date: Optional[date] = None,
+    created_end_date: Optional[date] = None,
+    is_vip: Optional[bool] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    db: AsyncSession = Depends(get_async_session)
+) -> PaginationSchema[PostInfoSchema]:
+     
+
+    posts, total = await crud_post.get_multi_filtered(
+        db, 
+        offset=offset, 
+        limit=limit,
+        is_vip=is_vip,
+        min_price=min_price,
+        max_price=max_price,
+        created_start_date=created_start_date,
+        created_end_date=created_end_date,
+        order_by=order_by,
+        created_at_field_name = 'created_at',  
+        vip_field_name = 'is_vip', 
+        price_field_name = 'price',
+    )
+    
+    result_posts = []
+    for post in posts:
+        category = await crud_category.get(db, id=post.category_id)
+        subcategory = await crud_subcategory.get(db, id=post.sub_category_id)
+        
+        owner =  await crud_user.get(db, id=post.owner)
+        
+        post_data = post.dict()
+        
+        if 'owner' in post_data:
+            del post_data['owner']
+        
+        post_data['category'] = category.title if category else "Category not found"
+        post_data['subcategory'] = subcategory.title if subcategory else "Subcategory not found"
+        
+        owner_data = UserDataSchema(**owner.dict())
+        post_info = PostInfoSchema(**post_data, owner=owner_data)
+        
+        result_posts.append(post_info)
+
+
+    return PaginationSchema[PostInfoSchema](total=total, items=result_posts, offset=offset, limit=limit) 
+
+
 @router.get("/id/{id}", response_model=PostInfoSchema)
 async def get_post(id: str, db: AsyncSession=Depends(get_async_session)) -> PostInfoSchema:
     
