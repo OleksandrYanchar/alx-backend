@@ -116,7 +116,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         if id is not None:
             query = query.filter(getattr(self._model, id_field_name) == id)
         if title is not None:
-            query = query.filter(getattr(self._model, title_field_name) == title)
+               query = query.filter(getattr(self._model, title_field_name).ilike(f"%{title}%"))
         if category is not None:
             query = query.filter(getattr(self._model, category_field_name) == category)
         if subcategory is not None:
