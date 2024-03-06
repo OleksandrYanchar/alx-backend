@@ -8,3 +8,4 @@ class PaginationSchema(BaseModel, Generic[T]):
     total: int
     offset: int
     limit: int
+    detail: str = 'ok'
