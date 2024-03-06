@@ -83,9 +83,19 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
         order_by: Optional[str] = None,
+        id: Optional[str] = None,
+        title: Optional[str] = None,
+        category: Optional[str] = None,
+        subcategory: Optional[str] = None,
+        owner: Optional[str] = None,
         created_at_field_name: str = 'created_at',
         vip_field_name: str = 'is_vip', 
         price_field_name: str = 'price',
+        id_field_name: str ='id',
+        title_field_name: str ='title',
+        category_field_name: str ='category_id',
+        subcategory_field_name: str ='sub_category_id',
+        owner_field_name='owner',
         
         **kwargs
     ) -> List[ModelType]:
@@ -103,6 +113,16 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             query = query.filter(getattr(self._model, price_field_name) >= min_price)
         if max_price is not None:
             query = query.filter(getattr(self._model, price_field_name) <= max_price)
+        if id is not None:
+            query = query.filter(getattr(self._model, id_field_name) == id)
+        if title is not None:
+            query = query.filter(getattr(self._model, title_field_name) == title)
+        if category is not None:
+            query = query.filter(getattr(self._model, category_field_name) == category)
+        if subcategory is not None:
+            query = query.filter(getattr(self._model, subcategory_field_name) == subcategory)
+        if owner is not None:
+            query = query.filter(getattr(self._model, owner_field_name) == owner)
 
         # If additional filters are provided via kwargs (ensure they match column names)
         if kwargs:
