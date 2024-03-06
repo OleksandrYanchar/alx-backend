@@ -96,23 +96,30 @@ async def get_posts(
     is_vip: Optional[bool] = None,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
+    detail: str = 'ok',
     db: AsyncSession = Depends(get_async_session)
 ) -> PaginationSchema[PostInfoSchema]:
      
      
     if category:
         category_obj = await crud_category.get(db, title=category)
-        category = category_obj.id if category_obj else None
+        if not category_obj:
+            detail = "Category not found"
+        category = category_obj.id
 
     if subcategory:
         subcategory_obj = await crud_subcategory.get(db, title=subcategory)
+        if not subcategory_obj:
+                         detail = "Subategory not found"
         subcategory = subcategory_obj.id if subcategory_obj else None
 
     if owner:
         owner_obj = await crud_user.get(db, username=owner)
+        if not owner_obj:
+            detail = "Owner not found"
         owner = owner_obj.id if owner_obj else None
-
     
+
     posts, total = await crud_post.get_multi_filtered(
         db, 
         offset=offset, 
@@ -159,4 +166,4 @@ async def get_posts(
         result_posts.append(post_info)
 
 
-    return PaginationSchema[PostInfoSchema](total=total, items=result_posts, offset=offset, limit=limit) 
+    return PaginationSchema[PostInfoSchema](total=total, items=result_posts, offset=offset, limit=limit, detail=detail) 
