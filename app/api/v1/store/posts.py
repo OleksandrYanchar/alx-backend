@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import  Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from schemas.pagination import PaginationSchema
@@ -10,7 +10,7 @@ from services.posts import clean_title
 from crud.posts import crud_post 
 from dependencies.db import get_async_session
 from models.users import Users
-from schemas.posts import PostCreateInSchema
+from schemas.posts import PostCreateInSchema, PostUpdateSchema
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.posts import PostInfoSchema
 from dependencies.users import is_user_activated
@@ -259,3 +259,45 @@ async def get_posts_by_username(username: str,
 
         
     return PaginationSchema[PostInfoSchema](total=total, items=result_posts, offset=offset, limit=limit)
+
+
+
+@router.post("/update/{post_id}", response_model=PostInfoSchema)
+async def update_post_info(post_id: str, post_data: PostUpdateSchema, user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_async_session)):
+    post = await crud_post.get(db, id=post_id)
+
+    if user.id != post.owner:
+        raise HTTPException(status_code=404, detail="You don't have enough permissions")
+
+    if not post_data.category:
+        category = await crud_category.get(db, id=post.category_id)
+    else:
+        category = await crud_category.get(db, title=await clean_title(post_data.category))
+
+    if category is None:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    if not post_data.subcategory:
+        subcategory = await crud_subcategory.get(db, id=post.sub_category_id)
+    else:
+        subcategory = await crud_subcategory.get(db, title=await clean_title(post_data.subcategory))
+
+    if subcategory is None:
+        raise HTTPException(status_code=404, detail="Subcategory not found")
+
+
+    update_data = post_data.dict(exclude_unset=True)
+
+    update_data.pop('created_at', None)  
+    update_data['updated_at'] = datetime.now()
+    created_post = await crud_post.update(db, obj_in=update_data)    
+
+    if created_post is None or user is None:
+        return {"error": "Post creation or owner retrieval failed"}
+
+    post_info = created_post.dict()
+
+    if 'owner' in post_info:
+        del post_info['owner']
+
+    return PostInfoSchema(**post_info, owner=UserDataSchema(**user.dict()), category=category.title, subcategory=subcategory.title)
