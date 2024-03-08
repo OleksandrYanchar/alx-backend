@@ -14,7 +14,7 @@ class BlacklistedToken(Base):
     )
     token: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     blacklisted_on: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime, default=datetime.now, nullable=False
     )
 
     def __repr__(self):
