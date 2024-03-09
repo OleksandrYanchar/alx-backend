@@ -131,7 +131,7 @@ async def get_posts(
         title=title,
         category=category,
         subcategory=subcategory,
-        owner=owner,
+        owner=owner.id,
         created_start_date=created_start_date,
         created_end_date=created_end_date,
         order_by=order_by,
@@ -206,11 +206,16 @@ async def get_posts_by_username(username: str,
     offset: int = Query(default=0),  
     limit: int = Query(default=2), 
     order_by: str = None,
+    id: str = None,
+    category: str = None,
+    subcategory: str = None,
+    owner: str = None,
     created_start_date: Optional[date] = None,
     created_end_date: Optional[date] = None,
     is_vip: Optional[bool] = None,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
+    detail: str = 'ok',
     db: AsyncSession = Depends(get_async_session)
 ) -> PaginationSchema[PostInfoSchema]:
     
@@ -227,7 +232,7 @@ async def get_posts_by_username(username: str,
         id=id,
         category=category,
         subcategory=subcategory,
-        owner=owner,
+        owner=owner.id,
         created_start_date=created_start_date,
         created_end_date=created_end_date,
         order_by=order_by,
@@ -255,14 +260,13 @@ async def get_posts_by_username(username: str,
         owner_data = UserDataSchema(**owner.dict())
         post_info = PostInfoSchema(**post_data, owner=owner_data)
                 
-        result_posts.append(post_info)
-
+        result_posts.append(post_info) 
         
-    return PaginationSchema[PostInfoSchema](total=total, items=result_posts, offset=offset, limit=limit)
+    return PaginationSchema[PostInfoSchema](total=total, items=result_posts,detail=detail, offset=offset, limit=limit)
 
 
 
-@router.post("/update/{post_id}", response_model=PostInfoSchema)
+@router.put("/update/{post_id}", response_model=PostInfoSchema)
 async def update_post_info(post_id: str, post_data: PostUpdateSchema, user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_async_session)):
     post = await crud_post.get(db, id=post_id)
 
