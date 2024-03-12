@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from configs.general import STATIC_FILES_PATH
+from configs.general import STATIC_FILES_PATH, setup_logger
 
 
 router = APIRouter(
@@ -41,7 +41,11 @@ app.add_middleware(
 try:
     app.mount('/static', StaticFiles(directory=STATIC_FILES_PATH))
 except Exception:
-    app.mount('/static', StaticFiles(directory=f'../{STATIC_FILES_PATH}'))
+    STATIC_FILES_PATH = '../{STATIC_FILES_PATH}'
+    app.mount('/static', StaticFiles(directory=f'{STATIC_FILES_PATH}'))
+
+setup_logger(STATIC_FILES_PATH)
+
 
 
 if __name__ == "__main__":
