@@ -33,7 +33,7 @@ async def get_user_info(user_id: uuid.UUID, db: AsyncSession = Depends(get_async
     return user
 
 
-@router.post('/update-image/')
+@router.put('/update-image')
 async def update_photo(file: UploadFile = File(...), user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_async_session)):
 
     """
