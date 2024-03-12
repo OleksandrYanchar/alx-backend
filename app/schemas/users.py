@@ -60,3 +60,6 @@ class UserDataSchema(BaseModel):
     first_name : str
     email : str
     is_vip: bool
+    
+    class Config:
+        from_attributes = True
