@@ -12,7 +12,7 @@ def setup_logger(STATIC_FILES_PATH):
     LOG_FILENAME = os.getenv('LOG_FILENAME', 'app.log')
     LOG_FILE = f'{STATIC_FILES_PATH}/{LOG_FILENAME}'
 
-    log_format = "%(asctime)s %(levelname)-8s %(message)s"
+    log_format = "%(asctime)s %(levelname)-8s %(message)s  file: %(pathname)s  %(funcName)s line %(lineno)d"
     date_format = "%Y-%m-%d %H:%M:%S"
     logging.basicConfig(filename=LOG_FILE,
                             level=logging.ERROR, format=log_format, datefmt=date_format)
