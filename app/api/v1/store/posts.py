@@ -112,25 +112,27 @@ async def get_posts(
 ) -> PaginationSchema[PostInfoSchema]:
      
     try:
-     
         if category:
             category_obj = await crud_category.get(db, title=category)
             if not category_obj:
                 detail = "Category not found"
-            category = category_obj.id
+            else:
+                category = category_obj.id
 
         if subcategory:
             subcategory_obj = await crud_subcategory.get(db, title=subcategory)
             if not subcategory_obj:
-                detail = "Subategory not found"
-            subcategory = subcategory_obj.id if subcategory_obj else None
+                detail = "Subcategory not found"
+            else:
+                subcategory = subcategory_obj.id
 
+        owner_id = None  # Initialize owner_id as None
         if owner:
             owner_obj = await crud_user.get(db, username=owner)
             if not owner_obj:
                 detail = "Owner not found"
-            owner = owner_obj.id if owner_obj else None
-        
+            else:
+                owner_id = owner_obj.id  # Use
 
         posts, total = await crud_post.get_multi_filtered(
             db, 
@@ -143,7 +145,7 @@ async def get_posts(
             title=title,
             category=category,
             subcategory=subcategory,
-            owner=owner.id,
+            owner=owner_id,
             created_start_date=created_start_date,
             created_end_date=created_end_date,
             order_by=order_by,
@@ -157,12 +159,18 @@ async def get_posts(
         )
         
         result_posts = []
+        
+        if not posts:
+            
+            return PaginationSchema[PostInfoSchema](total=0, items=result_posts, offset=offset, limit=limit, detail='no posts') 
+
+
         for post in posts:
             category = await crud_category.get(db, id=post.category_id)
             subcategory = await crud_subcategory.get(db, id=post.sub_category_id)
             
             owner =  await crud_user.get(db, id=post.owner)
-            
+
             post_data = post.dict()
             
             if 'owner' in post_data:
