@@ -19,3 +19,4 @@ python-jose
 python-multipart
 pyhumps
 aiofiles
+fastapi-cache2[redis]
