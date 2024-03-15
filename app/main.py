@@ -5,9 +5,12 @@ from api.v1.routers import router as v1_router
 from fastapi import APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
 
 from configs.general import STATIC_FILES_PATH, setup_logger
-
+from configs.db import  REDIS_HOST, REDIS_PORT
+from redis import asyncio as aioredis
 
 router = APIRouter(
     prefix="/api",
@@ -50,3 +53,9 @@ setup_logger(STATIC_FILES_PATH)
 
 if __name__ == "__main__":
         uvicorn.run(app="main:app", host="0.0.0.0", port=8000, reload=True)
+
+
+@app.on_event("startup")
+async def startup_event():
+    redis = aioredis.from_url(f"redis://{REDIS_HOST}:{REDIS_PORT}", encoding="utf8", decode_responses=True)
+    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
