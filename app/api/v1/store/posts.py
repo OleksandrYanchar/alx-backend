@@ -15,7 +15,9 @@ from schemas.posts import PostCreateInSchema, PostUpdateSchema
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.posts import PostInfoSchema
 from dependencies.users import is_user_activated
-
+from fastapi_cache.decorator import cache
+from starlette.requests import Request
+from starlette.responses import Response
 
 router = APIRouter(
     prefix="/posts",
@@ -91,7 +93,7 @@ async def create_post_handler(
             detail="Internal server error occurred during email verification",
         )
  
- 
+@cache(expire=60)
 @router.get("/all", response_model=PaginationSchema[PostInfoSchema])
 async def get_posts( 
     offset: int = Query(default=0),  
@@ -108,6 +110,8 @@ async def get_posts(
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     detail: str = 'ok',
+    request: Request = None,
+    response: Response = None,
     db: AsyncSession = Depends(get_async_session)
 ) -> PaginationSchema[PostInfoSchema]:
      
@@ -197,9 +201,9 @@ async def get_posts(
             detail="Internal server error occurred during email verification",
         )
 
-
+@cache(expire=60)
 @router.get("/id/{id}", response_model=PostInfoSchema)
-async def get_post(id: str, db: AsyncSession=Depends(get_async_session)) -> PostInfoSchema:
+async def get_post(id: str, request: Request = None, response: Response = None, db: AsyncSession=Depends(get_async_session)) -> PostInfoSchema:
     
     try:
         post = await crud_post.get(db, id=id)
@@ -240,7 +244,7 @@ async def get_post(id: str, db: AsyncSession=Depends(get_async_session)) -> Post
             detail="Internal server error occurred during email verification",
         )
 
-
+@cache(expire=60)
 @router.get("/user/{username}/all", response_model=PaginationSchema[PostInfoSchema])
 async def get_posts_by_username(username: str, 
     offset: int = Query(default=0),  
@@ -256,6 +260,8 @@ async def get_posts_by_username(username: str,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     detail: str = 'ok',
+    request: Request = None,
+    response: Response = None,
     db: AsyncSession = Depends(get_async_session)
 ) -> PaginationSchema[PostInfoSchema]:
     
