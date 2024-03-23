@@ -7,6 +7,13 @@ load_dotenv()
 STATIC_FILES_PATH = os.getenv('STATIC_FILES_PATH') 
 MEDIA_FILES_PATH = STATIC_FILES_PATH + '/media/'
 
+ADMINS_EMAILS: str = os.getenv('ADMINS_EMAILS')
+
+ADMINS_EMAILS: str = os.getenv('ADMINS_EMAILS', '')
+
+admins_emails: list[str] = [
+    email.strip() for email in ADMINS_EMAILS.split(",") if email.strip()
+]
 
 def setup_logger(STATIC_FILES_PATH):
     LOG_FILENAME = os.getenv('LOG_FILENAME', 'app.log')
