@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
+from typing import Optional
+import aiofiles
+from fastapi import Request
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 import jwt
 from configs.auth import ALGORITHM, SECRET
@@ -38,24 +41,27 @@ class EmailSender(ABC):
         """
         pass
 
-    async def send_email(self, user, request):
+    async def send_email(self, recipients, request: Optional[Request], template_name):
         """
-        Send an email using the prepared data.
+        Send an email to multiple recipients.
+        recipients: List of email addresses.
         """
-        # Utilizing template_name defined in the subclass
-        base_template = await self.load_template(self.template_name)
-        prepared_template = await self.prepare_email_data(user, request, base_template)
+        # Load the email template based on the file name.
+        base_template = await self.load_template(template_name)
+        # Assuming we don't need to prepare the data differently for each recipient.
+        # This method might need adjustments if that's not the case.
+        prepared_template = base_template  # Directly use the loaded template for simplicity.
 
-        message = MessageSchema(
-            subject=self.subject,  # Utilizing subject defined in the subclass
-            recipients=[user.email],  # Assuming 'email' attribute in 'user'
-            body=prepared_template,
-            subtype="html",
-        )
-
-        fm = FastMail(self.config)
-        await fm.send_message(message)
-
+        # Create a message schema for each recipient and send the email.
+        for email in recipients:
+            message = MessageSchema(
+                subject=self.subject,  # Utilizing subject defined in the subclass
+                recipients=[email],  # Send to the current recipient.
+                body=prepared_template,
+                subtype="html",
+            )
+            fm = FastMail(self.config)
+            await fm.send_message(message)
 
 class VerificationEmailSender(EmailSender):
 
@@ -108,6 +114,31 @@ class ResetPasswordEmailSender(EmailSender):
         return prepared_template
 
 
+class ReportEmailSender(EmailSender):
+    subject = "ALX Report"
+
+    async def load_template(self, file_name):
+        """
+        Load the email template from the file system based on the file name.
+        """
+        template_path = Path(__file__).parent.parent / f"reports/{file_name}"
+        async with aiofiles.open(template_path, "r") as f:
+            template = await f.read()
+        return template
+
+    async def prepare_email_data(self, user, request, template):
+        """
+        For report emails, we might not need to prepare data in the same way as other emails.
+        This method could be customized based on your requirements for report emails.
+        """
+        # Example: Directly return the template without modification.
+        # You might want to customize this based on your needs.
+        return template
+
+    
+
 verify_email_sender = VerificationEmailSender()
 
 reset_email_sender = ResetPasswordEmailSender()
+
+report_email_sender = ReportEmailSender()
