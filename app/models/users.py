@@ -19,5 +19,6 @@ class Users(Base):
     joined_at: Mapped[date] = mapped_column(nullable=False, default=date.today())
     is_activated: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_vip: Mapped[bool] = mapped_column(nullable=False, default=False)
+    viped_at: Mapped[date] = mapped_column(nullable=True, default=date.today())
     is_staff: Mapped[bool] = mapped_column(nullable=False, default=False)
     image: Mapped[str] = mapped_column(nullable=False, default="media/avatars/no_avatar.jpg")
