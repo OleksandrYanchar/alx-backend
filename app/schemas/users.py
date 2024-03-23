@@ -58,6 +58,8 @@ class UserDataSchema(BaseModel):
     username: str
     joined_at: date
     first_name : str
+    last_name: Optional[str] = None
+    is_staff: Optional[bool] = None
     email : str
     is_vip: bool
     

@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+
   nginx:
     container_name: nginx
     restart: always
@@ -62,5 +63,51 @@ services:
     depends_on:
       - alx-db
 
+  redis-cache:
+    image: redis:alpine
+    hostname: redis-cache
+    container_name: redis-cache
+    restart: on-failure
+    ports:
+      - '6379:6379'
+    command: redis-server
+    volumes:
+      - cache:/data
+
+  worker:
+    container_name: worker
+    build: 
+      context: .
+      dockerfile: ./docker/app/Dockerfile 
+    entrypoint: ["celery"]
+    command: ["-A", "app.configs.celery", "worker", "--loglevel=info"]
+    volumes:
+      - .:/app
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+    depends_on:
+      - alx-db
+      - backend
+      - redis-cache
+
+  flower:
+    container_name: flower
+    build: 
+      context: .
+      dockerfile: ./docker/app/Dockerfile     
+    entrypoint: ["celery"]
+    command: ["-A", "app.configs.celery", "flower", "--port=5555"]
+    volumes:
+      - .:/app
+    ports:
+      - "5555:5555"
+    depends_on:
+      - backend
+      - redis-cache
+      - worker
+
 volumes:
   postgres_data:
+  cache:
