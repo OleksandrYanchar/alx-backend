@@ -3,9 +3,9 @@ import logging
 import os
 from typing import  List, Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, status, UploadFile
-from configs.general import POSTS_PICTURES_DIR
+from configs.general import POSTS_PICTURES_DIR, VIPS_POST_IMAGES_LIMIT, POST_IMAGES_LIMIT
 from tasks.store import upload_picture
-from dependencies.store import is_user_owner
+from dependencies.store import is_user_owner_or_stuff
 from schemas.pagination import PaginationSchema
 from crud.users import crud_user
 from dependencies.auth import get_current_user
@@ -419,13 +419,22 @@ async def update_post_info(post_id: str, post_data: PostUpdateSchema, user: User
 
 
 
-@router.post('/{post_id}/upload-photo', dependencies=[Depends(is_user_owner)])
+@router.post('/{post_id}/upload-photo', dependencies=[Depends(is_user_owner_or_stuff)])
 async def upload_post_photo(post_id: str,
+                            user: Users = Depends(get_current_user),
                             files: List[UploadFile] = File(...), 
                             db: AsyncSession = Depends(get_async_session)):
 
+    upload_limit = VIPS_POST_IMAGES_LIMIT if user.is_vip else POST_IMAGES_LIMIT
+    if len(files) > upload_limit:
+        raise HTTPException(
+            detail=f"Image limit exceeded, upload up to {upload_limit} images",
+            status_code=status.HTTP_400_BAD_REQUEST
+        )   
+            
     try:
-        # Check if there are any existing images for this post
+        
+        # Check if the number of files exceeds the limit
         existing_images = await crud_postimage.get_multi(
             db=db, post=post_id
         )
@@ -463,6 +472,9 @@ async def upload_post_photo(post_id: str,
                 )
 
         await db.commit()  # Make sure to commit after all changes
+        
+        return {'detail': 'images were saved'}
+        
         
     except Exception as e:
         await db.rollback()  # Rollback in case of any exception
