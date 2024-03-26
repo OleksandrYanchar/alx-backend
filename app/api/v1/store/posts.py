@@ -1,17 +1,21 @@
 from datetime import date, datetime
 import logging
-from typing import  Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+import os
+from typing import  List, Optional
+from fastapi import APIRouter, Depends, File, HTTPException, Query, status, UploadFile
+from configs.general import POSTS_PICTURES_DIR
+from tasks.store import upload_picture
+from dependencies.store import is_user_owner
 from schemas.pagination import PaginationSchema
 from crud.users import crud_user
 from dependencies.auth import get_current_user
 from crud.categories import crud_subcategory, crud_category
 from schemas.users import UserDataSchema
 from services.posts import clean_title
-from crud.posts import crud_post 
+from crud.posts import crud_postimage, crud_post 
 from dependencies.db import get_async_session
 from models.users import Users
-from schemas.posts import PostCreateInSchema, PostUpdateSchema
+from schemas.posts import PostCreateInSchema, PostImageUpdate, PostUpdateSchema, PostImageInfo
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.posts import PostInfoSchema
 from dependencies.users import is_user_activated
@@ -76,21 +80,24 @@ async def create_post_handler(
         # Since `created_post.dict()` might include an 'owner' key, explicitly exclude it to avoid the TypeError
         post_info = created_post.dict()
 
+        post_images = await crud_postimage.get_multi(db, post=created_post.id)
+        images_info = [PostImageInfo(image=image.image) for image in post_images]
+        
         # Remove the 'owner' key manually
         if 'owner' in post_info:
             del post_info['owner']
 
         # Then proceed with your return statement
-        return PostInfoSchema(**post_info, owner=UserDataSchema(**owner.dict()), category=category.title, subcategory=subcategory.title)
+        return PostInfoSchema(**post_info, owner=UserDataSchema(**owner.dict()), category=category.title, subcategory=subcategory.title, images=images_info)
 
     except HTTPException as e:
         raise e
     
     except Exception as e:
-        logging.error(f"Verification error: {e}")
+        logging.error(f"creating post error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error occurred during email verification",
+            detail="Internal server error occurred during creating",
         )
  
 @cache(expire=60)
@@ -180,27 +187,39 @@ async def get_posts(
             if 'owner' in post_data:
                 del post_data['owner']
             
-            post_data['category'] = category.title if category else "Category not found"
-            post_data['subcategory'] = subcategory.title if subcategory else "Subcategory not found"
-            
-            owner_data = UserDataSchema(**owner.dict())
-            post_info = PostInfoSchema(**post_data, owner=owner_data)
-            
-            result_posts.append(post_info)
+            post_data.update({
+                'category': category.title if category else "Category not found",
+                'subcategory': subcategory.title if subcategory else "Subcategory not found",
+                'owner': UserDataSchema(**owner.dict())
+            })
 
+            # Fetch and add images for each post
+            post_images = await crud_postimage.get_multi(db, post=post.id)
+            images_info = [PostImageInfo(image=image.image) for image in post_images]
+            post_data['images'] = images_info  # Add images to post data
 
-        return PaginationSchema[PostInfoSchema](total=total, items=result_posts, offset=offset, limit=limit, detail=detail) 
+            # Append the constructed PostInfoSchema to result_posts
+            result_posts.append(PostInfoSchema(**post_data))
+
+        # Properly return an instance of PaginationSchema with the list of post_info objects
+        return PaginationSchema[PostInfoSchema](
+            total=total, 
+            items=result_posts, 
+            offset=offset, 
+            limit=limit, 
+            detail=detail
+        )
 
     except HTTPException as e:
         raise e
-    
     except Exception as e:
-        logging.error(f"Verification error: {e}")
+        logging.error(f"getting all posts error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error occurred during email verification",
+            detail="Internal server error occurred during getting posts",
         )
-
+        
+        
 @cache(expire=60)
 @router.get("/id/{id}", response_model=PostInfoSchema)
 async def get_post(id: str, request: Request = None, response: Response = None, db: AsyncSession=Depends(get_async_session)) -> PostInfoSchema:
@@ -229,19 +248,30 @@ async def get_post(id: str, request: Request = None, response: Response = None, 
             del post_data['owner']
 
         # Add category and subcategory titles to post_data
-        post_data['category'] = category.title if category else None
-        post_data['subcategory'] = subcategory.title if subcategory else None
+        post_data.update({
+                'category': category.title if category else "Category not found",
+                'subcategory': subcategory.title if subcategory else "Subcategory not found",
+                'owner': UserDataSchema(**owner.dict())
+            })
 
-        return PostInfoSchema(**post_data, owner=UserDataSchema(**owner.dict()))
+            # Fetch and add images for each post
+        post_images = await crud_postimage.get_multi(db, post=post.id)
+        images_info = [PostImageInfo(image=image.image) for image in post_images]
+        post_data['images'] = images_info  # Add images to post data
+
+        
+        # Then proceed with your return statement
+        return PostInfoSchema(**post_data)
+
 
     except HTTPException as e:
         raise e
     
     except Exception as e:
-        logging.error(f"Verification error: {e}")
+        logging.error(f"getting post by id error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error occurred during email verification",
+            detail="Internal server error occurred during getting post",
         )
 
 @cache(expire=60)
@@ -269,6 +299,7 @@ async def get_posts_by_username(username: str,
         owner = await crud_user.get(db, username=username)
         if not owner:
             raise HTTPException(status_code=404, detail="Owner not found")
+
         posts, total = await crud_post.get_multi_filtered(
             db, 
             offset=offset, 
@@ -290,37 +321,49 @@ async def get_posts_by_username(username: str,
             subcategory_field_name='sub_category_id',
             owner_field_name='owner',
         )
-        
-        
         result_posts = []
+
         for post in posts:
             category = await crud_category.get(db, id=post.category_id)
             subcategory = await crud_subcategory.get(db, id=post.sub_category_id)
-            
+            post_images = await crud_postimage.get_multi(db, post=post.id)
+
             post_data = post.dict()
-            if 'owner' in post_data:
-                del post_data['owner']
-            
             post_data['category'] = category.title if category else "Category not found"
             post_data['subcategory'] = subcategory.title if subcategory else "Subcategory not found"
-            
-            owner_data = UserDataSchema(**owner.dict())
-            post_info = PostInfoSchema(**post_data, owner=owner_data)
-                    
-            result_posts.append(post_info) 
-            
-        return PaginationSchema[PostInfoSchema](total=total, items=result_posts,detail=detail, offset=offset, limit=limit)
+
+            post_data.update({
+                'category': category.title if category else "Category not found",
+                'subcategory': subcategory.title if subcategory else "Subcategory not found",
+                'owner': UserDataSchema(**owner.dict())
+            })
+
+            # Fetch and add images for each post
+            post_images = await crud_postimage.get_multi(db, post=post.id)
+            images_info = [PostImageInfo(image=image.image) for image in post_images]
+            post_data['images'] = images_info  # Add images to post data
+
+            # Append the constructed PostInfoSchema to result_posts
+            result_posts.append(PostInfoSchema(**post_data))
+
+        # Properly return an instance of PaginationSchema with the list of post_info objects
+        return PaginationSchema[PostInfoSchema](
+            total=total, 
+            items=result_posts, 
+            offset=offset, 
+            limit=limit, 
+            detail=detail
+        )
+
 
     except HTTPException as e:
         raise e
-    
     except Exception as e:
-        logging.error(f"Verification error: {e}")
+        logging.error(f"getting user's posts error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error occurred during email verification",
+            detail="Internal server error occurred during getting user's posts",
         )
-
 
 @router.put("/update/{post_id}", response_model=PostInfoSchema)
 async def update_post_info(post_id: str, post_data: PostUpdateSchema, user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_async_session)):
@@ -368,8 +411,63 @@ async def update_post_info(post_id: str, post_data: PostUpdateSchema, user: User
         raise e
     
     except Exception as e:
-        logging.error(f"Verification error: {e}")
+        logging.error(f"updating post error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error occurred during email verification",
+            detail="Internal server error occurred during updating post",
+        )
+
+
+
+@router.post('/{post_id}/upload-photo', dependencies=[Depends(is_user_owner)])
+async def upload_post_photo(post_id: str,
+                            files: List[UploadFile] = File(...), 
+                            db: AsyncSession = Depends(get_async_session)):
+
+    try:
+        # Check if there are any existing images for this post
+        existing_images = await crud_postimage.get_multi(
+            db=db, post=post_id
+        )
+        
+        # If there are existing images, delete them from the database and the folder
+        if existing_images:
+            for image in existing_images:
+                # Delete the file from the filesystem
+                actual_file_name = image.image.split('/')[-1]
+                file_path = os.path.join(POSTS_PICTURES_DIR, actual_file_name)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                # Delete the record from the database
+                await crud_postimage.delete(db=db, id=image.id)
+
+        # Process each file
+        for file in files:
+            # Read the file content
+            file_content = await file.read()
+            filename = file.filename
+
+            # Asynchronously upload the picture and wait for the result
+            task_result = upload_picture.delay(file_content, filename, POSTS_PICTURES_DIR)
+            file_url = task_result.get(timeout=10)
+
+            # Create new PostImage object with 'images' as a list of URLs
+            post_image_in = PostImageUpdate(post=post_id, image=file_url)  # Corrected here
+            new_post_image = await crud_postimage.create(db, obj_in=post_image_in)
+                    
+            # Confirm new_post_image is not None and is persisted successfully
+            if not new_post_image:
+                raise HTTPException(
+                    detail="Failed to save image information to the database",
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        await db.commit()  # Make sure to commit after all changes
+        
+    except Exception as e:
+        await db.rollback()  # Rollback in case of any exception
+        logging.error(f'File upload error: {e}', exc_info=True)
+        raise HTTPException(
+            detail="Internal server error occurred during uploading image",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
