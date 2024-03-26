@@ -12,7 +12,7 @@ router = APIRouter(
 )
 
 
-@router.get('/report', response_model=DailyReportScheme, dependencies=[Depends(is_user_stuff)])
+@router.get('/daily-report', response_model=DailyReportScheme, dependencies=[Depends(is_user_stuff)])
 async def send_report(db: AsyncSession = Depends(get_async_session)) -> DailyReportScheme:
 
     return await generate_report(db)
