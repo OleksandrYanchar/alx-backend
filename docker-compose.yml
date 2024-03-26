@@ -16,7 +16,9 @@ services:
       - .:/app
     depends_on:
       - backend
-
+    networks:
+      - alx-network
+      
   backend:
     container_name: backend
     restart: always
@@ -31,7 +33,9 @@ services:
     depends_on:
       - alx-db
       - redis-cache
-
+    networks:
+      - alx-network
+      
 
   alx-db:
     container_name: alx-db
@@ -47,34 +51,22 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
-
-  pgadmin:
-    container_name: pgadmin
-    image: dpage/pgadmin4
-    restart: always
-    ports:
-      - "5050:80"
-    env_file:
-      - .env
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-      PGADMIN_LISTEN_PORT: ${PGADMIN_LISTEN_PORT}
-    depends_on:
-      - alx-db
-
+    networks:
+      - alx-network
+      
   redis-cache:
-      image: redis:alpine
-      hostname: redis-cache
-      container_name: redis-cache
-      restart: on-failure
-      ports:
-        - '6379:6379'
-      command: redis-server
-      volumes:
-        - cache:/data
-
+    image: redis:alpine
+    hostname: redis-cache
+    container_name: redis-cache
+    restart: on-failure
+    ports:
+      - '6379:6379'
+    command: redis-server
+    volumes:
+      - cache:/data
+    networks:
+      - alx-network
+      
   celery-worker:
     container_name: celery-worker
     build:
@@ -91,7 +83,9 @@ services:
     depends_on:
       - alx-db
       - redis-cache
-
+    networks:
+      - alx-network
+      
   celery-beat:
     container_name: celery-beat
     build:
@@ -108,6 +102,8 @@ services:
     depends_on:
       - alx-db
       - redis-cache
+    networks:
+      - alx-network
 
   flower:
     container_name: flower
@@ -128,7 +124,22 @@ services:
       - backend
       - redis-cache
       - celery-worker
+    networks:
+      - alx-network
+
+  adminer:
+      image: adminer
+      ports:
+        - 5050:8080
+      environment:
+        ADMINER_DEFAULT_SERVER: alx-db
+      depends_on:
+        - alx-db
+      networks:
+        - alx-network
 
 volumes:
   postgres_data:
   cache:
+networks:
+  alx-network:
