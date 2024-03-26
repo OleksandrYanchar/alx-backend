@@ -17,6 +17,8 @@ ADMINS_EMAILS: str = os.getenv('ADMINS_EMAILS', '')
 POST_IMAGES_LIMIT = int(os.getenv('POST_IMAGES_LIMIT'))
 VIPS_POST_IMAGES_LIMIT = int(os.getenv('VIPS_POST_IMAGES_LIMIT'))
 
+POSTS_LIMIT = int(os.getenv('POSTS_LIMIT'))
+VIPS_POSTS_LIMIT = int(os.getenv('VIPS_POSTS_LIMIT'))
 admins_emails: list[str] = [
     email.strip() for email in ADMINS_EMAILS.split(",") if email.strip()
 ]
