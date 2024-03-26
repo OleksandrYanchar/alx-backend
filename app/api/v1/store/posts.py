@@ -3,7 +3,7 @@ import logging
 import os
 from typing import  List, Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, status, UploadFile
-from configs.general import POSTS_PICTURES_DIR, VIPS_POST_IMAGES_LIMIT, POST_IMAGES_LIMIT
+from configs.general import POSTS_PICTURES_DIR, VIPS_POST_IMAGES_LIMIT, POST_IMAGES_LIMIT, POSTS_LIMIT, VIPS_POSTS_LIMIT
 from tasks.store import upload_picture
 from dependencies.store import is_user_owner_or_stuff
 from schemas.pagination import PaginationSchema
@@ -35,6 +35,16 @@ async def create_post_handler(
     owner: Users= Depends(get_current_user),  # Assuming this correctly extracts the user and its UUID
     db: AsyncSession = Depends(get_async_session),
 ) -> PostInfoSchema:
+    
+    posts, total_post_count = await crud_post.get_multi_filtered(db=db, owner=owner.id)  # No need to fetch posts, just the count
+    upload_limit = VIPS_POST_IMAGES_LIMIT if owner.is_vip else POST_IMAGES_LIMIT
+    
+    if total_post_count >= upload_limit:
+        raise HTTPException(
+            detail=f"Post limit exceeded, you can create up to {upload_limit} posts",
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+    
     try:
         if post_data.price < 0 :
             raise HTTPException(
