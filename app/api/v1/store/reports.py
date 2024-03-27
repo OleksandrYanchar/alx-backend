@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
 
+from dependencies.users import is_user_stuff
 from schemas.pagination import PaginationSchema
 from crud.users import crud_user
 from schemas.users import UserDataSchema
@@ -24,7 +25,8 @@ router = APIRouter(
 @router.post('/create')
 async def ceate_report(report_data: BugReportCreateSchema,
                         user: Users = Depends(get_current_user),
-                        db: AsyncSession = Depends(get_async_session)) -> dict:
+                        db: AsyncSession = Depends(get_async_session)
+                        ) -> dict:
     
     try:
         is_vip =True if user.is_vip  else False
@@ -54,11 +56,13 @@ async def ceate_report(report_data: BugReportCreateSchema,
         )
 
 @cache(expire=60) 
-@router.get('/get/all', response_model=PaginationSchema[BugReportInfoSchema])
+@router.get('/get/all',dependencies=[Depends(is_user_stuff)],
+            response_model=PaginationSchema[BugReportInfoSchema])
 async def get_reports(request: Request, response: Response,
                       offset: int = Query(default=0),
                       limit: int = Query(default=2),
-                      db: AsyncSession = Depends(get_async_session)) -> PaginationSchema[BugReportInfoSchema]:
+                      db: AsyncSession = Depends(get_async_session)
+                      ) -> PaginationSchema[BugReportInfoSchema]:
 
     try:
         reports_list = []
@@ -91,7 +95,7 @@ async def get_reports(request: Request, response: Response,
 
 
 
-@router.put('/close/{id}')
+@router.put('/close/{id}',dependencies=[Depends(is_user_stuff)],)
 async def close_report(id: int, db: AsyncSession = Depends(get_async_session)) -> dict:
     try:
         report = await crud_report.update(db, id=id, obj_in={'is_closed': True})
@@ -112,7 +116,7 @@ async def close_report(id: int, db: AsyncSession = Depends(get_async_session)) -
 
 
 @cache(expire=60)
-@router.get('/id/{report_id}') 
+@router.get('/id/{report_id}',dependencies=[Depends(is_user_stuff)],response_model=BugReportInfoSchema) 
 async def get_report_by_id(request: Request, response: Response,
                            report_id: int,  # Correctly capture the path parameter
                            db: AsyncSession = Depends(get_async_session)) -> BugReportInfoSchema:
