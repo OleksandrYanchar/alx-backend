@@ -339,8 +339,6 @@ async def get_posts_by_username(username: str,
             post_images = await crud_postimage.get_multi(db, post=post.id)
 
             post_data = post.dict()
-            post_data['category'] = category.title if category else "Category not found"
-            post_data['subcategory'] = subcategory.title if subcategory else "Subcategory not found"
 
             post_data.update({
                 'category': category.title if category else "Category not found",
