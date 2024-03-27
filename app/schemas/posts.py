@@ -5,18 +5,20 @@ from typing import List, Optional
 
 from schemas.users import UserDataSchema
 
+
 class PostImageUpdate(BaseModel):
     post: uuid.UUID
     image: str
 
     class Config:
-        from_attributes = True  
+        from_attributes = True
+
 
 class PostImageInfo(BaseModel):
     image: str
 
     class Config:
-        from_attributes = True  
+        from_attributes = True
 
 
 class PostCreateInSchema(BaseModel):
@@ -33,7 +35,7 @@ class PostCreateInSchema(BaseModel):
 class PostInfoSchema(BaseModel):
     id: uuid.UUID
     owner: UserDataSchema
-    slug:str
+    slug: str
     title: str
     category: str
     subcategory: str
@@ -41,27 +43,27 @@ class PostInfoSchema(BaseModel):
     description: Optional[str] = None
     is_vip: bool
     created_at: datetime
-    updated_at: Optional[datetime] = None 
-    
-    images:  Optional[List[PostImageInfo]] = None
-    
+    updated_at: Optional[datetime] = None
+
+    images: Optional[List[PostImageInfo]] = None
+
     class Config:
-        from_attributes = True 
+        from_attributes = True
 
 
 class PostUpdateSchema(BaseModel):
-    
-    title: Optional[str]= None
-    slug:Optional[str]= None
-    category: Optional[str]= None
-    subcategory: Optional[str]= None
-    price: Optional[float]= None
+
+    title: Optional[str] = None
+    slug: Optional[str] = None
+    category: Optional[str] = None
+    subcategory: Optional[str] = None
+    price: Optional[float] = None
     description: Optional[str] = None
     updated_at: datetime = Field(
         default_factory=datetime.now, description="Post updating time"
     )
 
-    @validator('price')
+    @validator("price")
     def validate_price(cls, value):
         if value < 0:
             raise ValueError("price can't be negative")
@@ -69,5 +71,3 @@ class PostUpdateSchema(BaseModel):
 
     class Config:
         from_attributes = True  # Assuming you are using this model with SQLAlchemy
-
-

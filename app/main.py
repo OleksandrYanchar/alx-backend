@@ -7,9 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
-    
+
 from configs.general import STATIC_FILES_PATH, setup_logger
-from configs.db import  REDIS_URL
+from configs.db import REDIS_URL
 from redis import asyncio as aioredis
 
 router = APIRouter(
@@ -17,7 +17,7 @@ router = APIRouter(
     tags=["api"],
 )
 
-router.include_router(v1_router)    
+router.include_router(v1_router)
 
 
 app = FastAPI(
@@ -42,17 +42,18 @@ app.add_middleware(
 )
 
 try:
-    app.mount('/static', StaticFiles(directory=STATIC_FILES_PATH))
+    app.mount("/static", StaticFiles(directory=STATIC_FILES_PATH))
 except Exception:
-    STATIC_FILES_PATH = '../{STATIC_FILES_PATH}'
-    app.mount('/static', StaticFiles(directory=f'{STATIC_FILES_PATH}'))
+    STATIC_FILES_PATH = "../{STATIC_FILES_PATH}"
+    app.mount("/static", StaticFiles(directory=f"{STATIC_FILES_PATH}"))
 
 
 setup_logger(STATIC_FILES_PATH)
 
 
 if __name__ == "__main__":
-        uvicorn.run(app="main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(app="main:app", host="0.0.0.0", port=8000, reload=True)
+
 
 @app.on_event("startup")
 async def startup_event():

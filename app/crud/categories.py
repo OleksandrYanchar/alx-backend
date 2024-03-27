@@ -1,4 +1,4 @@
-from    crud.base import CRUDBase
+from crud.base import CRUDBase
 from schemas.categories import CreateCategorySchema, UpdateCategorySchema
 from models.posts import Category, SubCategory
 

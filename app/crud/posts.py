@@ -7,4 +7,3 @@ crud_post = CRUDPost(Post)
 
 CRUDPostImage = CRUDBase[PostImage, PostImageUpdate, PostImageUpdate]
 crud_postimage = CRUDPost(PostImage)
-
