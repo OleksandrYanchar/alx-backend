@@ -5,4 +5,3 @@ from models.store import BugReport
 
 CRUDCategory = CRUDBase[BugReport, BugReportCreateSchema, BugReportCreateSchema]
 crud_report = CRUDCategory(BugReport)
-

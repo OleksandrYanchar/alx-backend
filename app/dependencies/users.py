@@ -21,5 +21,6 @@ async def is_user_stuff(
         return True
     else:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User hasn't enough permissions"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User hasn't enough permissions",
         )

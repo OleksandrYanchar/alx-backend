@@ -50,7 +50,9 @@ class EmailSender(ABC):
         base_template = await self.load_template(template_name)
         # Assuming we don't need to prepare the data differently for each recipient.
         # This method might need adjustments if that's not the case.
-        prepared_template = base_template  # Directly use the loaded template for simplicity.
+        prepared_template = (
+            base_template  # Directly use the loaded template for simplicity.
+        )
 
         # Create a message schema for each recipient and send the email.
         for email in recipients:
@@ -62,6 +64,7 @@ class EmailSender(ABC):
             )
             fm = FastMail(self.config)
             await fm.send_message(message)
+
 
 class VerificationEmailSender(EmailSender):
 
@@ -135,7 +138,6 @@ class ReportEmailSender(EmailSender):
         # You might want to customize this based on your needs.
         return template
 
-    
 
 verify_email_sender = VerificationEmailSender()
 

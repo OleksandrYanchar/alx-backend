@@ -9,12 +9,13 @@ from db.db import engine
 
 AsyncSessionFactory = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
+
 async def get_async_session():
     async with AsyncSessionFactory() as session:
         yield session
 
 
-@celery_app.task(name='generate_report')
+@celery_app.task(name="generate_report")
 def generate_daily_report_task():
     async def task_with_db():
         # Directly use the sessionmaker in the async context

@@ -3,6 +3,7 @@ import secrets
 from PIL import Image
 from tasks.configs import celery_app
 
+
 @celery_app.task
 def upload_picture(file_content: bytes, filename: str, dir: str):
     extension = filename.split(".")[-1].lower()
@@ -28,5 +29,5 @@ def upload_picture(file_content: bytes, filename: str, dir: str):
         return f"Error processing image: {str(e)}"
 
     # Assume all paths involve 'static/' for simplicity
-    file_url = generated_name.split('static/')[1]
+    file_url = generated_name.split("static/")[1]
     return file_url

@@ -53,9 +53,11 @@ async def create_user(
             user_request.email
         ):
             if await is_unique(
-                db, Users, {"email": user_request.email, "username": user_request.username}
+                db,
+                Users,
+                {"email": user_request.email, "username": user_request.username},
             ):
-                
+
                 # Hash password and create user
                 user_request.password = get_password_hash(user_request.password)
                 obj_in = UserCreateInSchema(**user_request.dict())
@@ -63,7 +65,9 @@ async def create_user(
                     db, obj_in
                 )  # This should return the new user object with an ID
 
-                await verify_email_sender.send_email([new_user.email], request, 'send-verification.html')
+                await verify_email_sender.send_email(
+                    [new_user.email], request, "send-verification.html"
+                )
 
                 # Generate tokens using the new_user object, which has an 'id'
                 tokens = await create_jwt_tokens(
@@ -75,7 +79,7 @@ async def create_user(
                 return UserCreateOutSchema(**new_user.dict(), tokens=tokens)  # Adjust
     except HTTPException as e:
         raise e
-    
+
     except Exception as e:
         logging.error(f"Verification error: {e}")
         raise HTTPException(
@@ -97,7 +101,6 @@ async def email_verification(token: str, db: AsyncSession = Depends(get_async_se
 
         user = await crud_user.get(db, id=user_id)
 
-
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -110,16 +113,14 @@ async def email_verification(token: str, db: AsyncSession = Depends(get_async_se
                 detail="User is already activated",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
-        user = await crud_user.update(
-                db, db_obj=user, obj_in={"is_activated": True}
-            )
+
+        user = await crud_user.update(db, db_obj=user, obj_in={"is_activated": True})
 
         return {"username": user.username, "is_active": user.is_activated}
-    
+
     except HTTPException as e:
         raise e
-    
+
     except Exception as e:
         logging.error(f"Verification error: {e}")
         raise HTTPException(
@@ -128,13 +129,12 @@ async def email_verification(token: str, db: AsyncSession = Depends(get_async_se
         )
 
 
-
 @router.post("/token")
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: AsyncSession = Depends(get_async_session),
 ):
-    try: 
+    try:
         user = await verify_user_credentials(
             form_data.username, form_data.password, session
         )
@@ -149,46 +149,53 @@ async def login_for_access_token(
             detail="Internal server error occurred during verifying credentials",
         )
 
+
 @router.post("/password-change")
 async def change_password(
     user_request: UserPasswordChangeSchema,
     db: AsyncSession = Depends(get_async_session),
     user: Users = Depends(get_current_user),
 ):
-    
+
     try:
         if not verify_password(user_request.old_password, user.password):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Old password is incorrect."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Old password is incorrect.",
             )
 
         if not await validate_password(user_request.new_password1):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="New password isn't valid"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="New password isn't valid",
             )
 
         if user_request.new_password1 != user_request.new_password2:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Two passwords didn't match"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Two passwords didn't match",
             )
 
         # Hash new password before saving
         new_password = get_password_hash(user_request.new_password1)
 
-        user = await crud_user.update(db, db_obj=user, obj_in={"password": new_password})
+        user = await crud_user.update(
+            db, db_obj=user, obj_in={"password": new_password}
+        )
 
         tokens = await create_jwt_tokens(user)  # Await the async function call
         return tokens
-    
+
     except HTTPException as e:
         raise e
-    
+
     except Exception as e:
         logging.error(f"Verification error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error occurred during email verification",
         )
+
 
 @router.post("/token/refresh", response_model=TokenSchema)
 async def refresh_token(
@@ -210,10 +217,10 @@ async def refresh_token(
         )  # Pass the user object to create new tokens
         await blacklist_token(refresh_token, db)
         return tokens
-    
+
     except HTTPException as e:
         raise e
-    
+
     except Exception as e:
         logging.error(f"Verification error: {e}")
         raise HTTPException(
@@ -237,14 +244,16 @@ async def forgot_password(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Incorrect username or email",
+            )
+        await reset_email_sender.send_email(
+            [user.email], request, "password-reset.html"
         )
-        await reset_email_sender.send_email([user.email], request, 'password-reset.html')
 
         return {"detail": "email was sent"}
-    
+
     except HTTPException as e:
         raise e
-    
+
     except Exception as e:
         logging.error(f"Verification error: {e}")
         raise HTTPException(
@@ -262,12 +271,12 @@ async def rest_email_verification(
     try:
         token = token.strip()
 
-        if  await is_token_blacklisted(token, db): 
+        if await is_token_blacklisted(token, db):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token is expired or invalid",
                 headers={"WWW-Authenticate": "Bearer"},
-            )  
+            )
 
         token_data = await verify_token(token, "access")
         user_id = str(token_data.user_id)
@@ -276,9 +285,7 @@ async def rest_email_verification(
 
         if user:
 
-            if not await validate_password(
-                user_request.new_password1
-            ):  
+            if not await validate_password(user_request.new_password1):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="New password isn't valid",
@@ -296,21 +303,19 @@ async def rest_email_verification(
                 db, db_obj=user, obj_in={"password": new_password}
             )
 
-            await blacklist_token(token, db)  
+            await blacklist_token(token, db)
 
-            token_schema = await create_jwt_tokens(
-                user
-            )  
+            token_schema = await create_jwt_tokens(user)
             return token_schema
 
         else:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
-            )  
+            )
 
     except HTTPException as e:
         raise e
-    
+
     except Exception as e:
         logging.error(f"Verification error: {e}")
         raise HTTPException(
@@ -336,13 +341,14 @@ async def delete_account(
         )
     except HTTPException as e:
         raise e
-    
+
     except Exception as e:
         logging.error(f"Verification error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error occurred during email verification",
         )
+
 
 @router.post("/logout")
 async def logout():

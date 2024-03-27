@@ -21,4 +21,6 @@ class Users(Base):
     is_vip: Mapped[bool] = mapped_column(nullable=False, default=False)
     viped_at: Mapped[date] = mapped_column(nullable=True)
     is_staff: Mapped[bool] = mapped_column(nullable=False, default=False)
-    image: Mapped[str] = mapped_column(nullable=False, default="media/avatars/no_avatar.jpg")
+    image: Mapped[str] = mapped_column(
+        nullable=False, default="media/avatars/no_avatar.jpg"
+    )

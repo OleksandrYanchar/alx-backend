@@ -6,8 +6,7 @@ from schemas.tokens import TokenSchema
 
 
 class UserCreateInSchema(BaseModel):
-    id: uuid.UUID =  Field(
-        default_factory=uuid.uuid4, description="user id")
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="user id")
     username: str
     password: str
     first_name: str
@@ -53,15 +52,16 @@ class UserPasswordResetSchema(BaseModel):
 
     class Config:
         from_attributes = True
-        
+
+
 class UserDataSchema(BaseModel):
     username: str
     joined_at: date
-    first_name : str
+    first_name: str
     last_name: Optional[str] = None
     is_staff: Optional[bool] = None
-    email : str
+    email: str
     is_vip: bool
-    
+
     class Config:
         from_attributes = True
