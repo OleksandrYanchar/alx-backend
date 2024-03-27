@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: cdb7c14e1d59
+Revision ID: 75c21b36e510
 Revises: 
-Create Date: 2024-03-04 09:54:07.259125
+Create Date: 2024-03-27 11:36:35.783562
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'cdb7c14e1d59'
+revision = '75c21b36e510'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -43,11 +43,24 @@ def upgrade() -> None:
     sa.Column('joined_at', sa.Date(), nullable=False),
     sa.Column('is_activated', sa.Boolean(), nullable=False),
     sa.Column('is_vip', sa.Boolean(), nullable=False),
+    sa.Column('viped_at', sa.Date(), nullable=True),
     sa.Column('is_staff', sa.Boolean(), nullable=False),
     sa.Column('image', sa.String(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('username')
+    )
+    op.create_table('bugreports',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('user', sa.UUID(), nullable=False),
+    sa.Column('title', sa.String(length=64), nullable=False),
+    sa.Column('body', sa.String(), nullable=False),
+    sa.Column('time_stamp', sa.DateTime(), nullable=False),
+    sa.Column('is_closed', sa.Boolean(), nullable=False),
+    sa.Column('is_vip', sa.Boolean(), nullable=False),
+    sa.ForeignKeyConstraint(['user'], ['users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('title')
     )
     op.create_table('subcategories',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -71,7 +84,6 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.Column('is_vip', sa.Boolean(), nullable=False),
-    sa.Column('image', sa.String(), nullable=False),
     sa.ForeignKeyConstraint(['category_id'], ['categories.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['owner'], ['users.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['sub_category_id'], ['subcategories.id'], ondelete='CASCADE'),
@@ -92,6 +104,7 @@ def downgrade() -> None:
     op.drop_table('postimages')
     op.drop_table('posts')
     op.drop_table('subcategories')
+    op.drop_table('bugreports')
     op.drop_table('users')
     op.drop_table('categories')
     op.drop_table('blacklisted_tokens')

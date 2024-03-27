@@ -16,6 +16,8 @@ services:
       - .:/app
     depends_on:
       - backend
+    networks:
+      - alx-network
 
   backend:
     container_name: backend
@@ -30,7 +32,10 @@ services:
     command: 'sh -c "alembic upgrade head && python app/main.py --host 0.0.0.0 --port 8000"'
     depends_on:
       - alx-db
-
+      - redis-cache
+    networks:
+      - alx-network
+      
 
   alx-db:
     container_name: alx-db
@@ -46,7 +51,92 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - alx-network
+      
+  redis-cache:
+    image: redis:alpine
+    hostname: redis-cache
+    container_name: redis-cache
+    restart: on-failure
+    ports:
+      - '6379:6379'
+    command: redis-server
+    volumes:
+      - cache:/data
+    networks:
+      - alx-network
+      
+  celery-worker:
+    container_name: celery-worker
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile  
+    command: celery -A app.tasks.configs worker --loglevel=info
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    volumes:
+      - .:/app
+    depends_on:
+      - alx-db
+      - redis-cache
+    networks:
+      - alx-network
+      
+  celery-beat:
+    container_name: celery-beat
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+    command: celery -A app.tasks.configs beat --loglevel=info  # Updated command to `beat`
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    volumes:
+      - .:/app
+    depends_on:
+      - alx-db
+      - redis-cache
+    networks:
+      - alx-network
 
+  flower:
+    container_name: flower
+    build: 
+      context: .
+      dockerfile: ./docker/app/Dockerfile     
+    command: celery -A app.tasks.configs flower
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    volumes:
+      - .:/app
+    ports:
+      - "5555:5555"
+    depends_on:
+      - backend
+      - redis-cache
+      - celery-worker
+    networks:
+      - alx-network
+
+  adminer:
+      image: adminer
+      ports:
+        - 5051:8080
+      environment:
+        ADMINER_DEFAULT_SERVER: alx-db
+      depends_on:
+        - alx-db
+      networks:
+        - alx-network
 
   pgadmin:
     container_name: pgadmin
@@ -63,51 +153,8 @@ services:
     depends_on:
       - alx-db
 
-  redis-cache:
-    image: redis:alpine
-    hostname: redis-cache
-    container_name: redis-cache
-    restart: on-failure
-    ports:
-      - '6379:6379'
-    command: redis-server
-    volumes:
-      - cache:/data
-
-  worker:
-    container_name: worker
-    build: 
-      context: .
-      dockerfile: ./docker/app/Dockerfile 
-    entrypoint: ["celery"]
-    command: ["-A", "app.configs.celery", "worker", "--loglevel=info"]
-    volumes:
-      - .:/app
-    environment:
-      - POSTGRES_DB=${DB_NAME}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASS}
-    depends_on:
-      - alx-db
-      - backend
-      - redis-cache
-
-  flower:
-    container_name: flower
-    build: 
-      context: .
-      dockerfile: ./docker/app/Dockerfile     
-    entrypoint: ["celery"]
-    command: ["-A", "app.configs.celery", "flower", "--port=5555"]
-    volumes:
-      - .:/app
-    ports:
-      - "5555:5555"
-    depends_on:
-      - backend
-      - redis-cache
-      - worker
-
 volumes:
   postgres_data:
   cache:
+networks:
+  alx-network:

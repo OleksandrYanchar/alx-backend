@@ -63,7 +63,7 @@ async def create_user(
                     db, obj_in
                 )  # This should return the new user object with an ID
 
-                await verify_email_sender.send_email(new_user, request)
+                await verify_email_sender.send_email([new_user.email], request, 'send-verification.html')
 
                 # Generate tokens using the new_user object, which has an 'id'
                 tokens = await create_jwt_tokens(
@@ -238,7 +238,7 @@ async def forgot_password(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Incorrect username or email",
         )
-        await reset_email_sender.send_email(user, request)
+        await reset_email_sender.send_email([user.email], request, 'password-reset.html')
 
         return {"detail": "email was sent"}
     

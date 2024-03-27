@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Report for {report_date}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; }}
+        .report-container {{ display: flex; justify-content: space-between; }}
+        .report-section {{ width: 45%; }}
+        .report-item {{ margin-bottom: 10px; }}
+        .report-header {{ font-weight: bold; margin-top: 20px; }}
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <div class="report-section">
+            <div class="report-header">ALX Report for: {report_date}</div>
+            
+            <div class="report-item">Total users: {total_users}</div>
+            <div class="report-item">Total activated: {total_activated}</div>
+            <div class="report-item">New users for last day: {new_users}</div>
+            
+            <div class="report-item">Total VIPs: {total_vips}</div>
+            <div class="report-item">New VIPs for last day: {new_vips}</div>
+            
+            <div class="report-item">New VIPs compared to yesterday: {vips_change}%</div>
+            <div class="report-item">New users compared to yesterday: {users_change}%</div>
+        </div>
+        <div class="report-section">
+            <div class="report-header">Post Stats</div>
+            <div class="report-item">Total posts: {total_posts}</div>
+            <div class="report-item">New posts for last day: {new_posts}</div>
+            <div class="report-item">Average posts price: {posts_average_price}</div>
+            <div class="report-item">New posts compared to yesterday: {posts_change}%</div>
+        </div>
+    </div>
+</body>
+</html>

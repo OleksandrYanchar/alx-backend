@@ -1,9 +1,22 @@
 import uuid
 from pydantic import BaseModel, validator, Field
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from schemas.users import UserDataSchema
+
+class PostImageUpdate(BaseModel):
+    post: uuid.UUID
+    image: str
+
+    class Config:
+        from_attributes = True  
+
+class PostImageInfo(BaseModel):
+    image: str
+
+    class Config:
+        from_attributes = True  
 
 
 class PostCreateInSchema(BaseModel):
@@ -29,7 +42,9 @@ class PostInfoSchema(BaseModel):
     is_vip: bool
     created_at: datetime
     updated_at: Optional[datetime] = None 
-
+    
+    images:  Optional[List[PostImageInfo]] = None
+    
     class Config:
         from_attributes = True 
 
@@ -54,6 +69,5 @@ class PostUpdateSchema(BaseModel):
 
     class Config:
         from_attributes = True  # Assuming you are using this model with SQLAlchemy
-
 
 

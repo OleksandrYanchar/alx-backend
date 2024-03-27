@@ -46,16 +46,14 @@ class Post(Base):
     created_at: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(nullable=True)
     is_vip: Mapped[bool] = mapped_column(nullable=False, default=False)
-    image: Mapped[str] = mapped_column(nullable=False, default="media/products/no_avatar.jpg")
 
 
 class PostImage(Base):
     __tablename__ = "postimages"
     
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     post: Mapped[uuid.UUID] = mapped_column(ForeignKey('posts.id', ondelete='CASCADE'))
     image: Mapped[str] = mapped_column(nullable=False)
-    
     
 def generate_slug(target, value, oldvalue, initiator):
     if value and (oldvalue is None or value != oldvalue):

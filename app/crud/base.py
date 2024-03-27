@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
+from datetime import  datetime
+from typing import Any , Dict, Generic, List, Optional, Type, TypeVar, Union
 from sqlalchemy import func
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -80,6 +80,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         created_start_date: Optional[datetime] = None,
         created_end_date: Optional[datetime] = None,
         is_vip: Optional[bool] = None,
+        is_activated: Optional[bool] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
         order_by: Optional[str] = None,
@@ -96,7 +97,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         category_field_name: str ='category_id',
         subcategory_field_name: str ='sub_category_id',
         owner_field_name='owner',
-        
+        activated_field_name='is_activated',
         **kwargs
     ) -> List[ModelType]:
         # Build the base query with all conditions but without offset and limit
@@ -109,6 +110,8 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             query = query.filter(getattr(self._model, created_at_field_name) <= created_end_date)
         if is_vip is not None:
             query = query.filter(getattr(self._model, vip_field_name) == is_vip)
+        if is_activated is not None:
+            query = query.filter(getattr(self._model, activated_field_name) == is_activated)
         if min_price is not None:
             query = query.filter(getattr(self._model, price_field_name) >= min_price)
         if max_price is not None:
@@ -160,3 +163,20 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         posts = result.scalars().all()
 
         return posts, total
+
+    async def get_total_before(self, db: AsyncSession, field_name: str, date) -> int:
+        field = getattr(self._model, field_name, None)
+        if field is None:
+            raise ValueError(f"Field {field_name} not found in model {self._model.__name__}")
+        
+        query = select(func.count()).where(field < date)
+        result = await db.execute(query)
+        total_before_today = result.scalar_one_or_none() or 0  # Default to 0 if result is None
+        return total_before_today
+
+        
+    async def get_average_price(self, db: AsyncSession) -> float:
+        query = select(func.avg(self._model.price))
+        result = await db.execute(query)
+        average_price = result.scalar_one() or 0  # Default to 0 if result is None
+        return float(average_price)
