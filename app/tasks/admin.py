@@ -18,8 +18,6 @@ AsyncSessionFactory = sessionmaker(
 )
 
 
-
-
 @celery_app.task(name="generate_report")
 def generate_daily_report_task():
     async def task_with_db():

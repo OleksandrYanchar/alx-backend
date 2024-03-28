@@ -3,22 +3,24 @@ import logging
 import os
 from typing import List, Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, status, UploadFile
-from utils.posts import check_user_posts_limits, prepare_post_data_for_response, validate_and_transform_category_subcategory, validate_owner, validate_post_create_data
+from utils.posts import (
+    check_user_posts_limits,
+    prepare_post_data_for_response,
+    validate_and_transform_category_subcategory,
+    validate_owner,
+    validate_post_create_data,
+)
 from configs.general import (
     POSTS_PICTURES_DIR,
     VIPS_POST_IMAGES_LIMIT,
     POST_IMAGES_LIMIT,
-    POSTS_LIMIT,
-    VIPS_POSTS_LIMIT,
 )
 from tasks.store import upload_picture
 from dependencies.store import is_user_owner_or_stuff
 from schemas.pagination import PaginationSchema
-from crud.users import crud_user
 from dependencies.auth import get_current_user
 from crud.categories import crud_subcategory, crud_category
 from schemas.users import UserDataSchema
-from services.posts import clean_title
 from crud.posts import crud_postimage, crud_post
 from dependencies.db import get_async_session
 from models.users import Users
@@ -26,7 +28,6 @@ from schemas.posts import (
     PostCreateInSchema,
     PostImageUpdate,
     PostUpdateSchema,
-    PostImageInfo,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.posts import PostInfoSchema
@@ -40,32 +41,38 @@ router = APIRouter(
     tags=["posts"],
 )
 
-@router.post("/create", dependencies=[Depends(is_user_activated)], response_model=PostInfoSchema)
+
+@router.post(
+    "/create", dependencies=[Depends(is_user_activated)], response_model=PostInfoSchema
+)
 async def create_post_handler(
     post_data: PostCreateInSchema,
     owner: Users = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ) -> PostInfoSchema:
     # Check user post limits
-    await check_user_posts_limits(db, owner) 
+    await check_user_posts_limits(db, owner)
 
     # Validate and transform category and subcategory
     try:
         # Fetch category and subcategory objects based on provided strings
         category = await crud_category.get(db, title=post_data.category)
         subcategory = await crud_subcategory.get(db, title=post_data.subcategory)
-        
+
         # Validate post creation data
         await validate_post_create_data(post_data, category, subcategory)
-        
-        # Prepare the post creation dictionary
-        post_create_dict = post_data.dict(exclude={'category', 'subcategory'},)
-        post_create_dict.update({
-            "owner": owner.id,
-            "category_id": category.id,
-            "sub_category_id": subcategory.id,
-        })
 
+        # Prepare the post creation dictionary
+        post_create_dict = post_data.dict(
+            exclude={"category", "subcategory"},
+        )
+        post_create_dict.update(
+            {
+                "owner": owner.id,
+                "category_id": category.id,
+                "sub_category_id": subcategory.id,
+            }
+        )
 
         # Create the post
         created_post = await crud_post.create(db, obj_in=post_create_dict)
@@ -74,20 +81,20 @@ async def create_post_handler(
         post_info = await prepare_post_data_for_response(db, created_post)
 
         # Add additional fields to post_info if needed
-        post_info['owner'] = UserDataSchema.from_orm(owner)
-        post_info['category'] = category.title
-        post_info['subcategory'] = subcategory.title
+        post_info["owner"] = UserDataSchema.from_orm(owner)
+        post_info["category"] = category.title
+        post_info["subcategory"] = subcategory.title
 
         # Fetch and add images for the post
         post_images = await crud_postimage.get_multi(db, post=created_post.id)
         images_info = [image.image for image in post_images]
-        post_info['images'] = images_info
+        post_info["images"] = images_info
 
         return PostInfoSchema(**post_info)
-    
+
     except HTTPException as e:
         raise e
-    
+
     except Exception as e:
         logging.error(f"Creating post error: {e}")
         raise HTTPException(
@@ -121,13 +128,14 @@ async def get_posts(
         category, subcategory = None, None
         if category_title and subcategory_title:
             category, subcategory = await validate_and_transform_category_subcategory(
-                db, category_title, subcategory_title)
-        
+                db, category_title, subcategory_title
+            )
+
         owner_id = None
         if owner_username:
             owner = await validate_owner(db, username=owner_username)
             owner_id = owner.id
-        
+
         posts, total = await crud_post.get_multi_filtered(
             db,
             offset=offset,
@@ -144,8 +152,10 @@ async def get_posts(
             created_end_date=created_end_date,
             order_by=order_by,
         )
-        
-        result_posts = [await prepare_post_data_for_response(db, post) for post in posts]
+
+        result_posts = [
+            await prepare_post_data_for_response(db, post) for post in posts
+        ]
 
         return PaginationSchema[PostInfoSchema](
             total=total, items=result_posts, offset=offset, limit=limit, detail=detail
@@ -159,7 +169,6 @@ async def get_posts(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error occurred during getting posts",
         )
-
 
 
 @cache(expire=60)
@@ -188,7 +197,6 @@ async def get_post(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error occurred during getting post",
         )
-
 
 
 @cache(expire=60)
@@ -236,7 +244,9 @@ async def get_posts_by_username(
             created_end_date=created_end_date,
             order_by=order_by,
         )
-        result_posts = [await prepare_post_data_for_response(db, post) for post in posts]
+        result_posts = [
+            await prepare_post_data_for_response(db, post) for post in posts
+        ]
 
         return PaginationSchema[PostInfoSchema](
             total=total, items=result_posts, offset=offset, limit=limit, detail=detail
@@ -252,7 +262,6 @@ async def get_posts_by_username(
         )
 
 
-
 @router.put("/update/{post_id}", response_model=PostInfoSchema)
 async def update_post_info(
     post_id: str,
@@ -262,59 +271,48 @@ async def update_post_info(
 ):
 
     try:
+        # Fetch the post to update
         post = await crud_post.get(db, id=post_id)
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
 
+        # Check if the current user is the owner of the post
         if user.id != post.owner:
             raise HTTPException(
-                status_code=404, detail="You don't have enough permissions"
+                status_code=403, detail="You don't have enough permissions"
             )
 
-        if not post_data.category:
-            category = await crud_category.get(db, id=post.category_id)
-        else:
-            category = await crud_category.get(
-                db, title=await clean_title(post_data.category)
-            )
-
-        if category is None:
-            raise HTTPException(status_code=404, detail="Category not found")
-
-        if not post_data.subcategory:
-            subcategory = await crud_subcategory.get(db, id=post.sub_category_id)
-        else:
-            subcategory = await crud_subcategory.get(
-                db, title=await clean_title(post_data.subcategory)
-            )
-
-        if subcategory is None:
-            raise HTTPException(status_code=404, detail="Subcategory not found")
-
-        update_data = post_data.dict(exclude_unset=True)
-
-        update_data.pop("created_at", None)
-        update_data["updated_at"] = datetime.now()
-        created_post = await crud_post.update(db, obj_in=update_data)
-
-        if created_post is None or user is None:
-            return {"error": "Post creation or owner retrieval failed"}
-
-        post_info = created_post.dict()
-
-        if "owner" in post_info:
-            del post_info["owner"]
-
-        return PostInfoSchema(
-            **post_info,
-            owner=UserDataSchema(**user.dict()),
-            category=category.title,
-            subcategory=subcategory.title,
+        # Validate and transform category and subcategory
+        category, subcategory = await validate_and_transform_category_subcategory(
+            db,
+            category_title=post_data.category
+            if post_data.category
+            else post.category_id,
+            subcategory_title=post_data.subcategory
+            if post_data.subcategory
+            else post.sub_category_id,
         )
+
+        # Prepare update data
+        update_data = post_data.dict(exclude_unset=True)
+        update_data.pop("created_at", None)  # Exclude creation time from updates
+        update_data["updated_at"] = datetime.now()  # Update the 'updated_at' field
+        update_data["category_id"] = category.id
+        update_data["sub_category_id"] = subcategory.id
+
+        # Perform the update operation
+        updated_post = await crud_post.update(db, db_obj=post, obj_in=update_data)
+
+        # Prepare and return the updated post data
+        post_info = await prepare_post_data_for_response(
+            db, updated_post, include_images=True
+        )
+        return PostInfoSchema(**post_info)
 
     except HTTPException as e:
         raise e
-
     except Exception as e:
-        logging.error(f"updating post error: {e}")
+        logging.error(f"Updating post error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error occurred during updating post",
