@@ -1,6 +1,8 @@
+from typing import List
 from sqlalchemy import String, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
+
 from db.db import Base
 from datetime import date
 
@@ -24,3 +26,5 @@ class Users(Base):
     image: Mapped[str] = mapped_column(
         nullable=False, default="media/avatars/no_avatar.jpg"
     )
+
+    comments: Mapped[List["BugReportComment"]] = relationship("BugReportComment", back_populates="user")
