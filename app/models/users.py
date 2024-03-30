@@ -27,4 +27,7 @@ class Users(Base):
         nullable=False, default="media/avatars/no_avatar.jpg"
     )
 
-    comments: Mapped[List["BugReportComment"]] = relationship("BugReportComment", back_populates="user")
+    @property
+    def comments(self):
+        from models.store import BugReportComment
+        return relationship(BugReportComment, back_populates="user")

@@ -2,6 +2,7 @@ from typing import Optional, List
 from sqlalchemy import String, ForeignKey, Integer, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
+from models.users import Users
 from db.db import Base
 from datetime import datetime
 
@@ -32,5 +33,5 @@ class BugReportComment(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
 
     # This relationship links comments to users
-    user: Mapped["Users"] = relationship("Users", back_populates="comments")
     bug_report: Mapped["BugReport"] = relationship("BugReport", back_populates="comments")
+    user: Mapped[Users] = relationship("Users", back_populates="comments")
