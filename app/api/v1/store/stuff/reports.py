@@ -22,35 +22,29 @@ router = APIRouter(
     tags=["reports"],
 )
 
-
 @router.post("/create")
-async def ceate_report(
+async def create_report(
     report_data: BugReportCreateSchema,
     user: Users = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session),
 ) -> dict:
-
     try:
-        is_vip = True if user.is_vip else False
-        time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+        is_vip = user.is_vip  # Simplified boolean assignment
+        time_stamp = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
 
         user_name = user.username
 
+        # Construct the new report object from provided data
         report_obj = report_data.dict()
-
-        report_obj.update(
-            {
-                "user": user.id,
-                "body": f"from: {user_name} at: {time} problem:{report_data.body} ",
-                "is_vip": is_vip,
-            }
-        )
-
-        print(report_data)
+        report_obj.update({
+            "user_id": user.id,  # Corrected to match the BugReport model's expected field
+            "body": f"from: {user_name} at: {time_stamp} problem:{report_data.body}",
+            "is_vip": is_vip,
+        })
 
         await crud_report.create(db, obj_in=report_obj)
 
-        return {"detail": "report was successfuly sent"}
+        return {"detail": "Report was successfully sent."}
 
     except HTTPException as e:
         raise e
@@ -59,10 +53,8 @@ async def ceate_report(
         logging.error(f"Verification error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error occurred during bug report creating",
+            detail="Internal server error occurred during bug report creation.",
         )
-
-
 @cache(expire=60)
 @router.get(
     "/all",
@@ -76,7 +68,6 @@ async def get_reports(
     limit: int = Query(default=2),
     db: AsyncSession = Depends(get_async_session),
 ) -> PaginationSchema[BugReportInfoSchema]:
-
     try:
         reports_list = []
         reports, total = await crud_report.get_multi_filtered(
@@ -86,10 +77,19 @@ async def get_reports(
             is_activated=False,
             activated_field_name="is_closed",
         )
+
         for report in reports:
             report_data = report.dict()
-            user = await crud_user.get(db, id=report.user)
-            report_data.update({"user": UserDataSchema(**user.dict()).dict()})
+            
+            # Fetch user details using the correct user_id field from the report
+            user = await crud_user.get(db, id=report.user_id)  
+            if user:
+                # If the user is found, update the report data with user details
+                report_data.update({"user": UserDataSchema(**user.dict()).dict()})
+            else:
+                # Handle cases where the user might not be found
+                report_data.update({"user": None})
+    
             reports_list.append(BugReportInfoSchema(**report_data))
 
         return PaginationSchema[BugReportInfoSchema](
@@ -110,13 +110,15 @@ async def get_reports(
         )
 
 
-@router.put(
+@router.put(            
     "/close/{id}",
     dependencies=[Depends(is_user_stuff)],
 )
-async def close_report(id: int, db: AsyncSession = Depends(get_async_session)) -> dict:
+async def close_report(id: int, db: AsyncSession = Depends(get_async_session),
+                                current_user: Users = Depends(get_current_user)) -> dict:
     try:
-        report = await crud_report.update(db, id=id, obj_in={"is_closed": True})
+        report = await crud_report.update(db, id=id, obj_in={"is_closed": True, 
+                                                            "closed_by_id": current_user.id})
         if not report:
             raise HTTPException(status_code=404, detail="Report not found")
 
@@ -147,7 +149,6 @@ async def get_report_by_id(
 ) -> BugReportInfoSchema:
 
     try:
-        # Ensure you use the correct variable name to fetch the report
         report = await crud_report.get(db, id=report_id)
 
         if not report:
@@ -155,14 +156,17 @@ async def get_report_by_id(
 
         report_data = report.dict()
 
-        # Assuming crud_user.get is an async function; if not, you need to adjust it
-        user = await crud_user.get(db, id=report.user)
+        # Fetch user using the correct attribute (user_id)
+        user = await crud_user.get(db, id=report.user_id)
+        if user:
+            # Update the report_data with user information if user is found
+            report_data.update({"user": UserDataSchema(**user.dict()).dict()})
+        else:
+            # Optionally handle the case where the user is not found
+            report_data.update({"user": None})
 
-        # This assumes UserDataSchema can be initialized directly from user object
-        # Adjust according to your actual schema and data retrieval methods
-        report_data.update({"user": UserDataSchema(**user.dict()).dict()})
-
-        return report_data
+        # Ensure that BugReportInfoSchema is returned correctly
+        return BugReportInfoSchema(**report_data)
 
     except HTTPException as e:
         raise e
@@ -177,7 +181,8 @@ async def get_report_by_id(
 
 
 
-@router.post("/{bug_id}/create-comment", response_model=BugCommentInfoScheme, dependencies=[Depends(is_user_stuff)])
+
+@router.post("/id/{bug_id}/create-comment", response_model=BugCommentInfoScheme, dependencies=[Depends(is_user_stuff)])
 async def add_comment_to_bug(bug_id: int, comment_data: BugCommentScheme, user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_async_session)):
     # Ensure the bug exists
     try:
@@ -203,7 +208,7 @@ async def add_comment_to_bug(bug_id: int, comment_data: BugCommentScheme, user: 
             detail="Internal server error occurred during email verification",
         )
 
-@router.get("/{bug_report_id}/comments/", response_model=PaginationSchema[BugCommentInfoScheme])
+@router.get("/id/{bug_report_id}/comments/", response_model=PaginationSchema[BugCommentInfoScheme])
 async def read_comments_for_bug(
     bug_report_id: int,
     db: AsyncSession = Depends(get_async_session),
