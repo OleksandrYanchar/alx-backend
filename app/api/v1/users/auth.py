@@ -1,5 +1,6 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from dependencies.users import is_user_not_activated
 from schemas.tokens import RefreshTokenRequestSchema, TokenSchema
 from schemas.email import ForgotPasswordEmailSchema
 from dependencies.auth import get_current_user
@@ -353,3 +354,25 @@ async def delete_account(
 @router.post("/logout")
 async def logout():
     return {"detail": "You was logout"}
+
+
+
+@router.post("/send-verification", dependencies=[Depends(is_user_not_activated)])
+async def send_verification_email(request:Request, user:Users = Depends(get_current_user)):
+    
+    try:
+        await verify_email_sender.send_email(
+                    [user.email], request, "send-verification.html"
+                )
+    
+        return {"detail": "email was sent"}
+    
+    except HTTPException as e:
+        raise e
+
+    except Exception as e:
+        logging.error(f"Verification error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error occurred during email verification",
+        )
