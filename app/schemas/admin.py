@@ -13,3 +13,9 @@ class DailyReportScheme(BaseModel):
     posts_change: str
     vips_change: str
     posts_average_price: float
+
+
+class AdminBugsClosedCountSchema(BaseModel):
+    username: str
+    bugs_count: int
+    

@@ -152,7 +152,8 @@ services:
       PGADMIN_LISTEN_PORT: ${PGADMIN_LISTEN_PORT}
     depends_on:
       - alx-db
-
+    networks:
+      - alx-network
 volumes:
   postgres_data:
   cache:
