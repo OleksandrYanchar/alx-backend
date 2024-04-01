@@ -1,22 +1,24 @@
-from sqlalchemy.ext.asyncio import  create_async_engine
-from sqlalchemy.orm import DeclarativeBase
-from dotenv import load_dotenv
-import os
+from sqlalchemy.ext.asyncio import create_async_engine
+from configs.db import DB_HOST, DB_NAME, DB_PASS, DB_PORT, DB_USER
+from typing import Any, Dict
 
-load_dotenv()
+import humps
+from sqlalchemy import inspect
+from sqlalchemy.ext.declarative import as_declarative, declared_attr
 
-DB_NAME = os.getenv('DB_NAME')
-DB_PASS = os.getenv('DB_PASS')
-DB_USER = os.getenv('DB_USER')
-DB_HOST = os.getenv('DB_HOST')
-DB_PORT = os.getenv('DB_PORT')
 
 DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 engine = create_async_engine(DATABASE_URL)
 
 
+@as_declarative()
+class Base:
+    __name__: str
 
+    @declared_attr
+    def __tablename__(cls) -> str:
+        return humps.depascalize(cls.__name__)
 
-class Base(DeclarativeBase):
-    pass
+    def dict(self) -> Dict[str, Any]:
+        return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}

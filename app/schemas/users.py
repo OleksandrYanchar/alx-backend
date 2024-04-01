@@ -1,31 +1,67 @@
-from typing import Optional
-from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import date
+from typing import Optional
+import uuid
+from schemas.tokens import TokenSchema
 
-class UserCreateSchema(BaseModel):
+
+class UserCreateInSchema(BaseModel):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="user id")
     username: str
     password: str
     first_name: str
-    last_name: str
+    last_name: Optional[str] = None
     email: str
-    joined_at: date
-    is_activated: bool = False
-    is_vip: bool = False
-    is_staff: bool = False
-    image: Optional[str]
-      
+    # Use default_factory=date.today to ensure the current date is used as default
+    joined_at: date = Field(
+        default_factory=date.today, description="User registration date"
+    )
+
     class Config:
-        from_attributes = True  
+        from_attributes = True  # Assuming you are using this model with SQLAlchemy
+
 
 class UserCreateOutSchema(BaseModel):
-    id: UUID
-    username: str
+    id: uuid.UUID
     first_name: str
-    last_name: str
     email: str
-    joined_at: date
-    image: Optional[str]
-      
+
+    tokens: TokenSchema
+
+
+class UserLoginSchema(BaseModel):
+    username: str
+    password: str
+
     class Config:
-        from_attributes = True  
+        from_attributes = True
+
+
+class UserPasswordChangeSchema(BaseModel):
+    old_password: str
+    new_password1: str
+    new_password2: str
+
+    class Config:
+        from_attributes = True
+
+
+class UserPasswordResetSchema(BaseModel):
+    new_password1: str
+    new_password2: str
+
+    class Config:
+        from_attributes = True
+
+
+class UserDataSchema(BaseModel):
+    username: str
+    joined_at: date
+    first_name: str
+    last_name: Optional[str] = None
+    is_staff: Optional[bool] = None
+    email: str
+    is_vip: bool
+
+    class Config:
+        from_attributes = True
