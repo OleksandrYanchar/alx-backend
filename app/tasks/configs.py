@@ -22,4 +22,13 @@ celery_app.conf.beat_schedule = {
         "task": "generate_report",
         "schedule": crontab(hour=8, minute=0),
     },
+    "update_product_vip_every_12_hours": {
+        "task": "update_post_vip_from_user_vip", 
+        "schedule": crontab(hour="0,4,8,12,16,20"), 
+    },
+    "unvip_exited_users": {
+        "task": "unvip_exited_users", 
+        "schedule": crontab(hour="0"), 
+    },
 }
+

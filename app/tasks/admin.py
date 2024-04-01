@@ -27,11 +27,12 @@ def generate_daily_report_task():
                 result = await generate_report(session)
                 return result
             except Exception as e:
-                raise e
+                 logging.error(f"Error generating daily report generating: {e}\n{traceback.format_exc()}")
+
             finally:
                 await session.close()  # Ensure the session is closed
 
     try:
         asyncio.run(task_with_db())
     except Exception as e:
-        logging.error(f"Error generating daily report: {e}\n{traceback.format_exc()}")
+        logging.critical(f"Error generating daily report task starting: {e}\n{traceback.format_exc()}")
