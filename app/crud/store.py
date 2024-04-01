@@ -1,42 +1,26 @@
+from models.users import Users
+from schemas.admin import AdminBugsClosedCountSchema
+from crud.users import crud_user
 from crud.base import CRUDBase
 from schemas.store import BugReportCreateSchema,BugCommentScheme
 from models.store import BugReport, BugReportComment
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, desc, select
+
+
 
 class CRUDReports(CRUDBase[BugReport, BugReportCreateSchema, BugReportCreateSchema]):
     def __init__(self, model: BugReport):
         super().__init__(model)
 
-    async def count_closed_bugs_by_admin_from_date(self, db: AsyncSession, start_date: datetime, limit: Optional[int] = None) -> Dict[str, int]:
-        """
-        Counts how many bugs each admin closed since the given start date,
-        optionally limiting the number of entries returned.
-
-        :param db: The database session.
-        :param start_date: The date from which to start counting.
-        :param limit: The maximum number of admin entries to return. Returns all if None.
-        :return: A dictionary with admin usernames as keys and the amount of closed bugs as values.
-        """
-        query = (
-            db.query(
-                self.model.closed_by,
-                func.count(self.model.id).label('closed_count')
-            )
-            .filter(self.model.is_closed == True)
-            .filter(self.model.time_stamp >= start_date)
-            .group_by(self.model.closed_by)
-            .order_by(desc('closed_count'))
-        )
-
-        if limit is not None:
-            query = query.limit(limit)
-
+    async def get_closed_bugs_count_by_admin(self, db: AsyncSession):
+        # Query to count bugs closed by each admin
+        query = select(self._model.closed_by_id, func.count().label('bugs_closed')).where(self._model.is_closed == True).group_by(self._model.closed_by_id)
         result = await db.execute(query)
-        counts = {admin: count for admin, count in result}
-        return counts
+        closed_bugs_by_admin = result.all()
+        return closed_bugs_by_admin
+
 
 class CRUDComments(CRUDBase[BugReportComment, BugCommentScheme, BugCommentScheme]):
     async def get_comments_for_bug_paginated(self, db: AsyncSession, *, bug_report_id: int,
