@@ -8,7 +8,7 @@ from tasks.admin import AsyncSessionFactory
 from tasks.configs import celery_app
 from crud.posts import crud_post
 from crud.users import crud_user
-
+from datetime import datetime
 
 @celery_app.task
 def upload_picture(file_content: bytes, filename: str, dir: str):
@@ -52,10 +52,35 @@ def update_product_vip_task():
                     for post in posts:
                         await crud_post.update(session, obj_in={'is_vip': user.is_vip})
             except Exception as e:
-                raise e
+                logging.error(f"Error during post vip status changing: {e}\n{traceback.format_exc()}")
+            finally:
+                await session.close()  # Ensure the session is closed
+        try:
+            asyncio.run(update_product_vip())
+        except Exception as e:
+                logging.critical(f"Error during post vip status chanching task starting: {e}\n{traceback.format_exc()}")
+
+
+
+@celery_app.task(name='unvip_exited_users')
+def unvip_exited_users():
+    async def perfom_unvip():
+        async with AsyncSessionFactory() as session:
+            try:
+                users = await crud_user.get_multi_filtered(session, is_vip=True)
+                
+                for user in users:
+                    
+                    if user.viped_at <  datetime.today():
+                    
+                        await crud_user.update(session, obj_in={'is_vip': True,
+                                                                'viped_at': None })
+                       
+            except Exception as e:
+                logging.error(f"Error during unviping: {e}\n{traceback.format_exc()}")
             finally:
                 await session.close()  # Ensure the session is closed
     try:
-        asyncio.run(update_product_vip())
+        asyncio.run(perfom_unvip())
     except Exception as e:
-        logging.error(f"Error generating daily report: {e}\n{traceback.format_exc()}")
+        logging.critical(f"Error during unviping task starting: {e}\n{traceback.format_exc()}")

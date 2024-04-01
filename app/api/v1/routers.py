@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from api.v1.users.routers import router as user_router
 from api.v1.store.routers import router as store_router
-from api.v1.store.admin import router as admin_router
+from api.v1.store.stuff.admin import router as admin_router
 
 router = APIRouter(
     prefix="/v1",

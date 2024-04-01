@@ -386,3 +386,25 @@ async def upload_post_photo(
             detail="Internal server error occurred during uploading image",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@router.post("/delete/{post_id}", dependencies=[Depends(is_user_owner_or_stuff)])
+async def upload_post_photo(
+    post_id: str,
+    user: Users = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+
+    try:
+        post = await crud_post.get(id=post_id)
+        # Check if the number of files exceeds the limit
+        await crud_post.delete(db, db_obj=post)
+        return {"detail": "Post deleted successfully."}
+
+    except Exception as e:
+        await db.rollback()  # Rollback in case of any exception
+        logging.error(f"File upload error: {e}", exc_info=True)
+        raise HTTPException(
+            detail="Internal server error occurred during uploading image",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

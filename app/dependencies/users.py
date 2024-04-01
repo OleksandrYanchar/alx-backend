@@ -24,3 +24,12 @@ async def is_user_stuff(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User hasn't enough permissions",
         )
+
+async def is_user_not_activated(user: Users = Depends(get_current_user)):
+    if user.is_activated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User is activated",
+        )
+    else:
+        return True

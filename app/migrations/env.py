@@ -8,7 +8,7 @@ from db.db import Base, DATABASE_URL
 from models.users import Users
 from models.tokens import BlacklistedToken
 from models.posts import Post, Category, SubCategory, PostImage
-from models.store import BugReport
+from models.store import BugReport, BugReportComment
 
 config = context.config
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
